@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { EvidenceBadge } from "@/components/evidence-badge";
 import { SiteHeader } from "@/components/site-header";
 import { eventStatusLabels, eventTypeLabels, roleLabels } from "@/lib/domain/labels";
-import { getEventById } from "@/lib/repository/events";
+import { getEventById, isDemoEvent } from "@/lib/repository/events";
 
 type EventPageProps = { params: Promise<{ id: string }> };
 
@@ -21,7 +21,7 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
 
 export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
   const { id } = await params;
-  const event = getEventById(id);
+  const event = await getEventById(id);
   if (!event) return { title: "事件不存在｜模况" };
 
   return {
@@ -34,8 +34,9 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
 
 export default async function EventPage({ params }: EventPageProps) {
   const { id } = await params;
-  const event = getEventById(id);
+  const event = await getEventById(id);
   if (!event) notFound();
+  const demoMode = isDemoEvent(event);
 
   const sourceById = new Map(event.sources.map((source) => [source.id, source]));
 
@@ -54,7 +55,7 @@ export default async function EventPage({ params }: EventPageProps) {
           </div>
           <h1>{event.titleZh}</h1>
           <p>{event.deckZh}</p>
-          <div className="demo-ribbon">演示事件 · 所有厂商、产品和来源名称均为样例</div>
+          {demoMode && <div className="demo-ribbon">演示事件 · 所有厂商、产品和来源名称均为样例</div>}
         </header>
 
         <div className="detail-grid">

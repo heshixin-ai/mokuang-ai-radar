@@ -1,6 +1,6 @@
 import { EventFeed } from "@/components/event-feed";
 import { SiteHeader } from "@/components/site-header";
-import { listEvents } from "@/lib/repository/events";
+import { isDemoEvent, listEvents } from "@/lib/repository/events";
 import Link from "next/link";
 
 const workflow = [
@@ -9,8 +9,11 @@ const workflow = [
   { number: "03", title: "给出行动", text: "分别说明产品、开发和创业者是否受影响，以及最值得先检查什么。" },
 ];
 
-export default function Home() {
-  const events = listEvents();
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const events = await listEvents();
+  const demoMode = events.every(isDemoEvent);
 
   return (
     <main>
@@ -22,12 +25,12 @@ export default function Home() {
         <p>模况关注“变化”而不是“文章”。每天用 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
         <div className="hero-meta" id="stage-note">
           <span className="live-dot" />
-          <strong>公开页仍为演示数据</strong>
-          <span>第三阶段 · 真实采集与候选审核仅在内部后台运行</span>
+          <strong>{demoMode ? "首条正式事件发布前保留演示数据" : "公开事件来自人工发布"}</strong>
+          <span>第六阶段 · 草稿必须通过质量门禁，并由审核员单独发布</span>
         </div>
       </section>
 
-      <EventFeed events={events} />
+      <EventFeed events={events} demoMode={demoMode} />
 
       <section className="workflow-section" id="workflow" aria-labelledby="workflow-title">
         <div className="workflow-heading">
@@ -47,11 +50,11 @@ export default function Home() {
 
       <section className="about-section" id="about">
         <div>
-          <span className="section-label">STAGE 03</span>
-          <h2>真实来源已接入，发布仍由人把关。</h2>
+          <span className="section-label">STAGE 06</span>
+          <h2>从真实来源到正式事件，发布仍由人把关。</h2>
         </div>
         <div className="about-copy">
-          <p>当前版本每 30 分钟检查 20 个受控来源，完成采集、去重、有限 AI 分析并保存审核结果。公开信息流仍使用演示事件，正式发布和每日邮件将在后续阶段接入。</p>
+          <p>当前版本每 30 分钟检查 20 个受控来源，完成采集、去重、AI 分析与候选审核。已批准内容可生成带引用的正式草稿，通过质量门禁后仍需人工发布；每日邮件将在后续阶段接入。</p>
           <Link href="/api/v1/events">查看事件 API <span aria-hidden="true">↗</span></Link>
         </div>
       </section>
@@ -61,7 +64,7 @@ export default function Home() {
           <span className="brand-mark">模</span>
           <span><strong>模况</strong><small>MOKUANG</small></span>
         </div>
-        <p>AI 产品与模型变更雷达 · Stage 05 Coverage Expansion</p>
+        <p>AI 产品与模型变更雷达 · Stage 06 Event Publishing</p>
         <a href="#top">回到顶部 ↑</a>
       </footer>
     </main>

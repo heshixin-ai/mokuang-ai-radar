@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { EventAdminDashboard, EventAdminView } from "@/lib/events/types";
 import type { CandidateView, DashboardData, ReviewStatus } from "@/lib/ingestion/types";
 
-type BusyAction = { kind: "source" | "document" | "candidate"; id: string } | null;
+type BusyAction = { kind: "source" | "document" | "candidate" | "draft" | "event"; id: string } | null;
 type ApiEnvelope<T> = { data: T; error?: never } | { data?: never; error: { message: string } };
 
 const statusLabels: Record<ReviewStatus, string> = {
@@ -23,6 +24,7 @@ const eventTypeLabels: Record<string, string> = {
 
 export function ReviewDashboard() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [eventDashboard, setEventDashboard] = useState<EventAdminDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyAction>(null);
@@ -32,10 +34,18 @@ export function ReviewDashboard() {
   const loadDashboard = useCallback(async () => {
     setError(null);
     try {
-      const response = await fetch("/api/v1/admin/dashboard", { cache: "no-store" });
-      const payload = await readPayload<DashboardData>(response);
-      if (!response.ok || !payload.data) throw new Error(payload.error?.message ?? "审核数据读取失败。");
-      setDashboard(payload.data);
+      const [reviewResponse, eventResponse] = await Promise.all([
+        fetch("/api/v1/admin/dashboard", { cache: "no-store" }),
+        fetch("/api/v1/admin/events", { cache: "no-store" }),
+      ]);
+      const [reviewPayload, eventPayload] = await Promise.all([
+        readPayload<DashboardData>(reviewResponse),
+        readPayload<EventAdminDashboard>(eventResponse),
+      ]);
+      if (!reviewResponse.ok || !reviewPayload.data) throw new Error(reviewPayload.error?.message ?? "审核数据读取失败。");
+      if (!eventResponse.ok || !eventPayload.data) throw new Error(eventPayload.error?.message ?? "发布数据读取失败。");
+      setDashboard(reviewPayload.data);
+      setEventDashboard(eventPayload.data);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "审核数据读取失败。");
     }
@@ -51,7 +61,7 @@ export function ReviewDashboard() {
     [activeStatus, dashboard],
   );
 
-  async function runAction(kind: "source" | "document" | "candidate", id: string, request: () => Promise<Response>) {
+  async function runAction(kind: NonNullable<BusyAction>["kind"], id: string, request: () => Promise<Response>) {
     setBusy({ kind, id });
     setError(null);
     setNotice(null);
@@ -59,7 +69,13 @@ export function ReviewDashboard() {
       const response = await request();
       const payload = await readPayload<unknown>(response);
       if (!response.ok) throw new Error(payload.error?.message ?? "操作失败，请稍后重试。");
-      setNotice(kind === "source" ? "采集完成，新内容已进入待分析区。" : kind === "document" ? "分析完成，结果已进入候选队列。" : "审核状态已保存；没有触发公开发布。");
+      setNotice(
+        kind === "source" ? "采集完成，新内容已进入待分析区。"
+          : kind === "document" ? "分析完成，结果已进入候选队列。"
+            : kind === "candidate" ? "审核状态已保存；没有触发公开发布。"
+              : kind === "draft" ? "正式事件草稿已生成；仍需通过质量门禁并单独发布。"
+                : "事件发布状态已更新，并保留了审计记录。",
+      );
       await loadDashboard();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "操作失败，请稍后重试。");
@@ -81,7 +97,26 @@ export function ReviewDashboard() {
     }));
   }
 
-  if (!dashboard && !error) {
+  async function createDraft(candidate: CandidateView) {
+    await runAction("draft", candidate.id, () => fetch(`/api/v1/admin/candidates/${candidate.id}/draft`, {
+      method: "POST",
+    }));
+  }
+
+  async function transitionEvent(event: EventAdminView, action: "publish" | "withdraw") {
+    const note = notes[event.id]?.trim() || null;
+    if (action === "withdraw" && !note) {
+      setError("撤下事件时请填写原因，方便后续追溯。");
+      return;
+    }
+    await runAction("event", event.id, () => fetch(`/api/v1/admin/events/${event.id}/publication`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, note }),
+    }));
+  }
+
+  if ((!dashboard || !eventDashboard) && !error) {
     return <div className="review-loading" role="status">正在读取来源与候选队列…</div>;
   }
 
@@ -211,7 +246,15 @@ export function ReviewDashboard() {
                     ) : (
                       <div className="review-decision">
                         <div><strong>{statusLabels[candidate.reviewStatus]}</strong><span>{candidate.reviewedBy ?? "—"} · {formatDate(candidate.reviewedAt)}</span>{candidate.reviewNote && <p>{candidate.reviewNote}</p>}</div>
-                        <button type="button" disabled={Boolean(busy)} onClick={() => void reviewCandidate(candidate, "reopen")}>重新打开</button>
+                        <div className="review-decision-actions">
+                          {candidate.reviewStatus === "approved" && !eventDashboard?.events.some((event) => event.candidateId === candidate.id) && (
+                            <button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void createDraft(candidate)}>
+                              {busy?.kind === "draft" && busy.id === candidate.id ? "生成中…" : "生成正式草稿"}
+                            </button>
+                          )}
+                          {candidate.reviewStatus === "approved" && eventDashboard?.events.some((event) => event.candidateId === candidate.id) && <span>已生成正式草稿</span>}
+                          <button type="button" disabled={Boolean(busy)} onClick={() => void reviewCandidate(candidate, "reopen")}>重新打开</button>
+                        </div>
                       </div>
                     )}
                   </article>
@@ -219,6 +262,63 @@ export function ReviewDashboard() {
               </div>
             ) : <Empty text={`当前没有${statusLabels[activeStatus]}候选。`} />}
           </section>
+
+          {eventDashboard && (
+            <section className="review-panel" aria-labelledby="events-title">
+              <div className="review-panel-heading">
+                <div><span>04</span><h2 id="events-title">正式事件与发布门禁</h2></div>
+                <p>草稿必须通过结构、引用与置信度检查；发布和撤下都需要人工操作。</p>
+              </div>
+              <div className="publication-stats" aria-label="发布概览">
+                <Metric label="草稿" value={eventDashboard.counts.draft} tone="amber" />
+                <Metric label="可发布" value={eventDashboard.counts.ready} tone="green" />
+                <Metric label="已发布" value={eventDashboard.counts.published} tone="green" />
+                <Metric label="已撤下" value={eventDashboard.counts.withdrawn} tone="muted" />
+              </div>
+              {eventDashboard.events.length > 0 ? (
+                <div className="publication-queue">
+                  {eventDashboard.events.map((event) => (
+                    <article className="publication-card" key={event.id}>
+                      <div className="candidate-review-meta">
+                        <span>{eventTypeLabels[event.eventType] ?? event.eventType}</span>
+                        <span>{event.status === "draft" ? "草稿" : event.status === "published" ? "已发布" : "已撤下"}</span>
+                        <span className={event.qualityStatus === "ready" ? "quality-ready" : "quality-blocked"}>
+                          {event.qualityStatus === "ready" ? "门禁通过" : "门禁阻断"}
+                        </span>
+                        <span>置信度 {Math.round(event.confidence * 100)}%</span>
+                        <span>{event.modelId}</span>
+                      </div>
+                      <h3>{event.titleZh}</h3>
+                      <p>{event.deckZh}</p>
+                      <div className="draft-content-grid">
+                        <div><span>为什么重要</span><p>{event.whyItMatters}</p></div>
+                        <div><span>建议行动</span><p>{event.recommendedAction ?? "暂无建议行动。"}</p></div>
+                      </div>
+                      {event.qualityIssues.length > 0 && (
+                        <div className="quality-issues"><strong>阻断原因</strong><ul>{event.qualityIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul></div>
+                      )}
+                      <div className="publication-source">
+                        {event.sources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.publisher} · {source.title} ↗</a>)}
+                      </div>
+                      <div className="publication-actions">
+                        {event.status === "published" ? (
+                          <>
+                            <a href={`/events/${event.id}`} target="_blank" rel="noreferrer">查看公开详情 ↗</a>
+                            <label>撤下原因<textarea value={notes[event.id] ?? ""} maxLength={1000} onChange={(change) => setNotes((current) => ({ ...current, [event.id]: change.target.value }))} /></label>
+                            <button className="reject-button" type="button" disabled={Boolean(busy)} onClick={() => void transitionEvent(event, "withdraw")}>撤下事件</button>
+                          </>
+                        ) : (
+                          <button className="approve-button" type="button" disabled={Boolean(busy) || event.qualityStatus !== "ready"} onClick={() => void transitionEvent(event, "publish")}>
+                            {event.qualityStatus === "ready" ? "人工确认并发布" : "未通过门禁，不能发布"}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <Empty text="尚无正式事件草稿。请先在已批准候选中生成草稿。" />}
+            </section>
+          )}
         </>
       )}
     </div>

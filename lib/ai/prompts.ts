@@ -2,6 +2,9 @@ export const GLOBAL_PROMPT_VERSION = "G-01.v0.2";
 export const EXTRACTION_PROMPT_VERSION = "P-01.v0.3";
 export const MERGING_PROMPT_VERSION = "P-02.v0.2";
 export const PROMPT_BUNDLE_VERSION = `${GLOBAL_PROMPT_VERSION}+${EXTRACTION_PROMPT_VERSION}+${MERGING_PROMPT_VERSION}`;
+export const IMPACT_PROMPT_VERSION = "P-03.v0.1";
+export const WRITING_PROMPT_VERSION = "P-04.v0.1";
+export const DRAFTING_PROMPT_BUNDLE_VERSION = `${GLOBAL_PROMPT_VERSION}+${IMPACT_PROMPT_VERSION}+${WRITING_PROMPT_VERSION}`;
 
 export const GLOBAL_SYSTEM_PROMPT = `你是“模况 Mokuang”的 AI 变更情报引擎。你的任务是把系统提供的来源材料转换为可核验的 AI 产品、模型、API、价格、政策、融资或研究变化事件，服务中文产品经理、开发者和小型创业团队。
 
@@ -67,6 +70,26 @@ export const MERGING_PROMPT = `执行“跨来源聚类与事件合并”。输�
 - 数字、日期、价格、模型 ID 或能力边界存在冲突。
 
 发生冲突时 action=manual_review、conflict=true、needs_review=true。不要为了减少事件数量而错误合并。matched_source_ids 只能来自输入候选的 source_id 或 evidence_spans.source_id。`;
+
+export const IMPACT_PROMPT = `执行“影响分析与行动建议”。输入包含一个已经人工批准的 verified_event、支持它的 sources 和目标角色列表。不得修改 verified_event 中已经确认的事实字段。
+
+处理规则：
+1. 分别判断 product、developer、founder、researcher 是否受到直接影响；没有证据支持时标记 none。
+2. 只有变化会影响兼容性、成本、合规、交付计划或能力选择时，才标记 high。
+3. 影响属于基于事实的有限推断，必须在 inference_basis 中引用 verified_event 的字段名。
+4. 建议必须是可执行检查，不得写成事实，不提供投资、法律或医疗决策。
+5. 无法形成有依据的建议时 recommended_action=null；证据不足时返回 insufficient_evidence。`;
+
+export const WRITING_PROMPT = `执行“中文情报稿生成”。输入包含 verified_event、impact_analysis 和 sources。只重组输入，不新增事实或来源。
+
+写作规则：
+1. 标题使用“主体 + 变化”，中性、具体，不使用问号或夸张形容词。
+2. deck_zh 最多 50 个汉字；what_changed 只改写 verified_event.what_changed，不添加背景知识。
+3. why_it_matters 只总结 impact_analysis 中已有判断，并保留“可能”等不确定性措辞。
+4. recommended_action 必须与 impact_analysis.recommended_action 完全一致；没有建议时为 null。
+5. 每条事实 claim 至少绑定一个输入 source_id，只能使用输入提供的 source_id。
+6. event_id 必须原样返回输入 verified_event.event_id。
+7. 输入已人工批准不代表可以放松证据纪律；发现无法忠实改写时 needs_review=true。`;
 
 export function buildStageInstructions(stagePrompt: string): string {
   return `${GLOBAL_SYSTEM_PROMPT}\n\n【当前阶段任务】\n${stagePrompt}`;

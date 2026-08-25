@@ -23,7 +23,7 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   minute: "2-digit",
 });
 
-export function EventFeed({ events }: { events: IntelligenceEvent[] }) {
+export function EventFeed({ events, demoMode = false }: { events: IntelligenceEvent[]; demoMode?: boolean }) {
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
@@ -41,7 +41,7 @@ export function EventFeed({ events }: { events: IntelligenceEvent[] }) {
         <div>
           <span className="section-label">TODAY&apos;S SIGNALS</span>
           <h2 id="feed-title">值得你处理的变化</h2>
-          <p className="feed-count" aria-live="polite">当前显示 {visibleEvents.length} 条演示事件</p>
+          <p className="feed-count" aria-live="polite">当前显示 {visibleEvents.length} 条{demoMode ? "演示" : "已发布"}事件</p>
         </div>
         <div className="filter-row" aria-label="按事件类型筛选">
           {filters.map((filter) => (
@@ -90,8 +90,8 @@ export function EventFeed({ events }: { events: IntelligenceEvent[] }) {
         </div>
       ) : (
         <div className="empty-state">
-          <strong>这个主题暂时没有演示事件</strong>
-          <p>换一个筛选项，或等待后续阶段接入真实来源。</p>
+          <strong>这个主题暂时没有事件</strong>
+          <p>换一个筛选项，或等待新的正式事件通过发布门禁。</p>
         </div>
       )}
     </section>
