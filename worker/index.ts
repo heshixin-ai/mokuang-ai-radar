@@ -5,6 +5,8 @@ import { readAiConfig } from "@/lib/ai/config";
 import { readIngestionSchedulerConfig } from "@/lib/ingestion/scheduler-config";
 import { runScheduledRefresh } from "@/lib/ingestion/scheduler";
 import { createD1IngestionRepository } from "@/lib/repository/ingestion";
+import { runDailyDigest } from "@/lib/subscriptions/digest";
+import { readEmailConfig } from "@/lib/subscriptions/types";
 
 interface Env {
   ASSETS: Fetcher;
@@ -30,6 +32,10 @@ interface Env {
   INGESTION_MAX_ITEMS_PER_SOURCE?: string;
   INGESTION_ANALYSIS_BATCH_SIZE?: string;
   INGESTION_ANALYSIS_MODE?: string;
+  EMAIL_PROVIDER?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+  PUBLIC_SITE_URL?: string;
 }
 
 interface ExecutionContext {
@@ -75,6 +81,11 @@ const worker = {
       schedulerConfig: readIngestionSchedulerConfig(runtimeEnvironment),
       clock: () => new Date(controller.scheduledTime || Date.now()),
     });
+    const digest = await runDailyDigest({
+      database: env.DB,
+      config: readEmailConfig(runtimeEnvironment),
+      clock: () => new Date(controller.scheduledTime || Date.now()),
+    });
     console.log("mokuang_scheduled_refresh", JSON.stringify({
       cron: controller.cron,
       sourcesEligible: summary.sourcesEligible,
@@ -85,6 +96,9 @@ const worker = {
       analysesAttempted: summary.analysesAttempted,
       candidatesCreated: summary.candidatesCreated,
       analysesFailed: summary.analysesFailed,
+      digestClaimed: digest.claimed,
+      digestSent: digest.sent,
+      digestFailed: digest.failed,
     }));
   },
 };
@@ -104,6 +118,10 @@ const runtimeEnvironmentKeys = [
   "INGESTION_MAX_ITEMS_PER_SOURCE",
   "INGESTION_ANALYSIS_BATCH_SIZE",
   "INGESTION_ANALYSIS_MODE",
+  "EMAIL_PROVIDER",
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
+  "PUBLIC_SITE_URL",
 ] as const;
 
 function readRuntimeEnvironment(env: Env): Record<string, string | undefined> {
