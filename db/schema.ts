@@ -293,6 +293,82 @@ export const eventTopics = sqliteTable(
   ],
 );
 
+export const subscribers = sqliteTable(
+  "subscribers",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    normalizedEmail: text("normalized_email").notNull(),
+    status: text("status", { enum: ["pending", "active", "unsubscribed"] }).notNull(),
+    verifyTokenHash: text("verify_token_hash").notNull(),
+    unsubscribeToken: text("unsubscribe_token").notNull(),
+    unsubscribeTokenHash: text("unsubscribe_token_hash").notNull(),
+    consentAt: text("consent_at").notNull(),
+    verifiedAt: text("verified_at"),
+    unsubscribedAt: text("unsubscribed_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_subscribers_normalized_email").on(table.normalizedEmail),
+    index("idx_subscribers_status_updated").on(table.status, table.updatedAt),
+  ],
+);
+
+export const subscriptionPreferences = sqliteTable(
+  "subscription_preferences",
+  {
+    id: text("id").primaryKey(),
+    subscriberId: text("subscriber_id").notNull().references(() => subscribers.id),
+    topicSlug: text("topic_slug").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_subscription_preferences_subscriber_topic").on(table.subscriberId, table.topicSlug),
+    index("idx_subscription_preferences_topic").on(table.topicSlug),
+  ],
+);
+
+export const digestRuns = sqliteTable(
+  "digest_runs",
+  {
+    id: text("id").primaryKey(),
+    digestDate: text("digest_date").notNull(),
+    status: text("status", { enum: ["running", "succeeded", "failed"] }).notNull(),
+    subscriberCount: integer("subscriber_count").notNull().default(0),
+    sentCount: integer("sent_count").notNull().default(0),
+    skippedCount: integer("skipped_count").notNull().default(0),
+    failedCount: integer("failed_count").notNull().default(0),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("idx_digest_runs_date").on(table.digestDate)],
+);
+
+export const emailOutbox = sqliteTable(
+  "email_outbox",
+  {
+    id: text("id").primaryKey(),
+    subscriberId: text("subscriber_id").notNull().references(() => subscribers.id),
+    kind: text("kind", { enum: ["verification", "digest"] }).notNull(),
+    toEmail: text("to_email").notNull(),
+    subject: text("subject").notNull(),
+    html: text("html").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    status: text("status", { enum: ["queued", "sent", "failed"] }).notNull(),
+    providerId: text("provider_id"),
+    attempts: integer("attempts").notNull().default(0),
+    lastErrorCode: text("last_error_code"),
+    createdAt: text("created_at").notNull(),
+    sentAt: text("sent_at"),
+  },
+  (table) => [
+    uniqueIndex("idx_email_outbox_dedupe").on(table.dedupeKey),
+    index("idx_email_outbox_status_created").on(table.status, table.createdAt),
+  ],
+);
+
 export const candidateClusters = sqliteTable(
   "candidate_clusters",
   {

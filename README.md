@@ -2,7 +2,7 @@
 
 面向中文 AI 产品经理、开发者和小型创业团队的产品与模型变更雷达。模况把分散来源整理成带证据、影响判断和建议行动的变化事件。
 
-当前完成 Stage 08 正式阅读与修订：审核员可编辑草稿并保留递增版本快照，人工修订后重新运行质量门禁；公开主题和实体时间线只读取 `published` 事件。
+当前完成 Stage 09 订阅日报：读者可按主题双重确认订阅；系统每日汇总当天已发布事件，提供本地 outbox 和生产 Resend 双适配，并记录发送、失败与退订状态。
 
 ## 当前已实现
 
@@ -28,6 +28,7 @@
 - 跨来源候选聚类、版本冲突隔离、人工合并与独立事件判断
 - 正式事件人工编辑、版本快照与修订审计
 - 主题与实体索引及正式事件时间线
+- 双重确认订阅、主题偏好、一键退订和幂等每日邮件
 - 公开事件仓库只读取 `published` 状态；没有正式事件时回退到版本化演示数据
 - G-01、P-01、P-02、P-03、P-04 Prompt 版本记录
 - DeepSeek Responses API 严格结构化输出
@@ -36,7 +37,7 @@
 - 统一 API 错误结构
 - mock 领域测试、构建后渲染测试和浏览器验收
 
-暂未实现：订阅邮件和面向读者的账号体系。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
+面向读者的账号体系不属于当前 MVP；订阅无需账号。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
 
 ## 本地运行
 
@@ -104,6 +105,9 @@ POST /api/v1/admin/clusters/:id/review
 GET  /api/v1/admin/events
 PATCH /api/v1/admin/events/:id
 POST /api/v1/admin/events/:id/publication
+POST /api/v1/subscriptions
+GET  /api/v1/subscriptions/verify
+GET  /api/v1/subscriptions/unsubscribe
 ```
 
 采集请求只接受代码中登记的 `sourceId`，不能提交任意 URL。采集和分析拆成两步，避免一次请求批量调用模型；失败文档会保留为可重试状态。
@@ -150,6 +154,7 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - Stage 06 文档：`docs/stages/stage-06-event-publishing.md`
 - Stage 07 文档：`docs/stages/stage-07-event-clustering.md`
 - Stage 08 文档：`docs/stages/stage-08-reading-and-revisions.md`
+- Stage 09 文档：`docs/stages/stage-09-daily-digest.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
 - `stage/02-model-routing`：真实模型适配与分级路由
@@ -159,5 +164,6 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - `stage/06-event-publishing`：正式事件草稿、质量门禁、人工发布与撤下
 - `stage/07-event-clustering`：跨来源聚类建议、人工合并与重复发布防护
 - `stage/08-reading-and-revisions`：事件人工修订、版本审计与主题/实体时间线
+- `stage/09-daily-digest`：双重确认订阅、主题偏好、退订与幂等日报
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。
