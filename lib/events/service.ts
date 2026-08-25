@@ -3,7 +3,7 @@ import { generateEventDraft } from "@/lib/ai/drafting";
 import { AiPipelineError } from "@/lib/ai/errors";
 import { evaluateDraftQuality } from "@/lib/events/quality";
 import { ClusteringError, ensureCandidateCanCreateEvent } from "@/lib/clustering/service";
-import type { EventAdminDashboard, EventAdminView } from "@/lib/events/types";
+import { eventEditInputSchema, type EventAdminDashboard, type EventAdminView, type EventEditInput } from "@/lib/events/types";
 import { getD1 } from "@/db";
 import { D1EventWorkflowRepository } from "@/lib/repository/event-workflow";
 import type { ReviewActor } from "@/lib/repository/ingestion-contract";
@@ -97,5 +97,23 @@ export async function transitionEventPublication(
         : "事件不是已发布状态，无法撤下。",
     );
   }
+  return event;
+}
+
+export async function reviseEvent(
+  eventId: string,
+  input: EventEditInput,
+  actor: ReviewActor,
+  options: { repository?: D1EventWorkflowRepository; clock?: () => Date } = {},
+): Promise<EventAdminView> {
+  const repository = options.repository ?? new D1EventWorkflowRepository(getD1());
+  const edit = eventEditInputSchema.parse(input);
+  const event = await repository.reviseEvent({
+    eventId,
+    edit,
+    actor,
+    now: (options.clock ?? (() => new Date()))().toISOString(),
+  });
+  if (!event) throw new EventWorkflowError("EVENT_REVISION_CONFLICT", 409, "只能编辑草稿或已撤下事件；请刷新后重试。");
   return event;
 }

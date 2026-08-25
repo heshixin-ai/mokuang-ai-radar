@@ -1,5 +1,5 @@
 import { eventSchema, type EventFilter, type IntelligenceEvent } from "@/lib/domain/event";
-import { eventAdminDashboardSchema, eventAdminViewSchema, type ApprovedCandidateMaterial, type EventAdminDashboard, type EventAdminView } from "@/lib/events/types";
+import { eventAdminDashboardSchema, eventAdminViewSchema, type ApprovedCandidateMaterial, type EventAdminDashboard, type EventAdminView, type EventEditInput } from "@/lib/events/types";
 import type { DraftingResult } from "@/lib/ai/drafting";
 import type { ReviewActor } from "@/lib/repository/ingestion-contract";
 
@@ -159,8 +159,24 @@ export class D1EventWorkflowRepository {
         JSON.stringify(snapshot),
         input.now,
       ),
+      this.database.prepare(`
+        INSERT INTO event_revisions (id, event_id, revision_number, actor_id, actor_email, note, snapshot_json, created_at)
+        VALUES (?, ?, 1, ?, ?, ?, ?, ?)
+      `).bind(
+        `rev_${crypto.randomUUID()}`,
+        eventId,
+        input.actor.id,
+        input.actor.email,
+        "AI 草稿经审核员触发生成。",
+        JSON.stringify(snapshot),
+        input.now,
+      ),
+      this.database.prepare(`
+        INSERT INTO event_topics (id, event_id, slug, label, created_at) VALUES (?, ?, ?, ?, ?)
+      `).bind(`topic_${crypto.randomUUID()}`, eventId, input.material.candidate.eventType, topicLabel(input.material.candidate.eventType), input.now),
     ];
     await this.database.batch(statements);
+    await this.syncTaxonomy(eventId, input.result.draft.title_zh, input.material.candidate.eventType, [input.material.document.publisher], input.now);
     const saved = await this.getByCandidateId(input.material.candidate.id);
     if (!saved) throw new Error("Event draft was not persisted");
     return saved;
@@ -248,6 +264,82 @@ export class D1EventWorkflowRepository {
     return updated ? this.hydrateOne(updated) : null;
   }
 
+  async reviseEvent(input: {
+    eventId: string;
+    edit: EventEditInput;
+    actor: ReviewActor;
+    now: string;
+  }): Promise<EventAdminView | null> {
+    const current = await this.getAdminById(input.eventId);
+    if (!current || !["draft", "withdrawn"].includes(current.status)) return null;
+    const issues = editedQualityIssues(current, input.edit);
+    const snapshot = {
+      titleZh: input.edit.titleZh,
+      deckZh: input.edit.deckZh,
+      whatChanged: input.edit.whatChanged,
+      before: input.edit.before,
+      after: input.edit.after,
+      whyItMatters: input.edit.whyItMatters,
+      recommendedAction: input.edit.recommendedAction,
+      qualityStatus: issues.length === 0 ? "ready" : "blocked",
+      qualityIssues: issues,
+    };
+    const numberRow = await this.database.prepare(`
+      SELECT COALESCE(MAX(revision_number), 0) + 1 AS revision_number FROM event_revisions WHERE event_id = ?
+    `).bind(input.eventId).first<Record<string, unknown>>();
+    const revisionNumber = Number(numberRow?.revision_number ?? 1);
+    const result = await this.database.batch([
+      this.database.prepare(`
+        UPDATE events SET title_zh = ?, deck_zh = ?, what_changed = ?, before_text = ?, after_text = ?,
+          why_it_matters = ?, recommended_action = ?, needs_review = 0, review_reasons_json = '[]',
+          quality_status = ?, quality_issues_json = ?, updated_at = ?
+        WHERE id = ? AND status IN ('draft', 'withdrawn')
+      `).bind(
+        input.edit.titleZh, input.edit.deckZh, input.edit.whatChanged, input.edit.before,
+        input.edit.after, input.edit.whyItMatters, input.edit.recommendedAction,
+        snapshot.qualityStatus, JSON.stringify(issues), input.now, input.eventId,
+      ),
+      this.database.prepare(`
+        INSERT INTO event_revisions (id, event_id, revision_number, actor_id, actor_email, note, snapshot_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(`rev_${crypto.randomUUID()}`, input.eventId, revisionNumber, input.actor.id, input.actor.email, input.edit.note, JSON.stringify(snapshot), input.now),
+      this.database.prepare(`
+        INSERT INTO publication_actions (id, event_id, action, actor_id, actor_email, note, snapshot_json, created_at)
+        VALUES (?, ?, 'revised', ?, ?, ?, ?, ?)
+      `).bind(`pub_${crypto.randomUUID()}`, input.eventId, input.actor.id, input.actor.email, input.edit.note, JSON.stringify(snapshot), input.now),
+    ]);
+    if (Number(result[0].meta.changes ?? 0) === 0) return null;
+    await this.syncTaxonomy(input.eventId, input.edit.titleZh, current.eventType, current.sources.map((source) => source.publisher), input.now);
+    return this.getAdminById(input.eventId);
+  }
+
+  async getAdminById(eventId: string): Promise<EventAdminView | null> {
+    const row = await this.database.prepare(eventSelectSql("WHERE e.id = ?"))
+      .bind(eventId).first<Record<string, unknown>>();
+    return row ? this.hydrateOne(row) : null;
+  }
+
+  private async syncTaxonomy(eventId: string, title: string, eventType: string, publishers: string[], now: string): Promise<void> {
+    await this.database.prepare(`
+      INSERT INTO event_topics (id, event_id, slug, label, created_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(event_id, slug) DO NOTHING
+    `).bind(`topic_${crypto.randomUUID()}`, eventId, eventType, topicLabel(eventType), now).run();
+    const haystack = `${title} ${publishers.join(" ")}`.toLowerCase();
+    const matches = knownEntities.filter((entity) => entity.aliases.some((alias) => haystack.includes(alias)));
+    for (const entity of matches) {
+      await this.database.batch([
+        this.database.prepare(`
+          INSERT INTO entities (id, slug, name, kind, description, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(slug) DO UPDATE SET updated_at = excluded.updated_at
+        `).bind(`entity_${entity.slug}`, entity.slug, entity.name, entity.kind, entity.description, now, now),
+        this.database.prepare(`
+          INSERT INTO event_entities (id, event_id, entity_id, created_at)
+          VALUES (?, ?, ?, ?) ON CONFLICT(event_id, entity_id) DO NOTHING
+        `).bind(`ee_${crypto.randomUUID()}`, eventId, `entity_${entity.slug}`, now),
+      ]);
+    }
+  }
+
   async listPublished(filter: EventFilter = {}): Promise<IntelligenceEvent[]> {
     const conditions = ["e.status = 'published'"];
     const bindings: string[] = [];
@@ -278,7 +370,7 @@ export class D1EventWorkflowRepository {
     if (rows.length === 0) return [];
     const ids = rows.map((row) => String(row.id));
     const placeholders = ids.map(() => "?").join(", ");
-    const [sourceRows, citationRows] = await Promise.all([
+    const [sourceRows, citationRows, revisionRows] = await Promise.all([
       this.database.prepare(`
         SELECT es.event_id, d.id AS document_id, d.title, d.canonical_url, d.published_at,
           s.name AS publisher, s.source_type
@@ -294,9 +386,14 @@ export class D1EventWorkflowRepository {
         WHERE event_id IN (${placeholders})
         ORDER BY created_at ASC
       `).bind(...ids).all<Record<string, unknown>>(),
+      this.database.prepare(`
+        SELECT id, event_id, revision_number, actor_email, note, created_at
+        FROM event_revisions WHERE event_id IN (${placeholders}) ORDER BY revision_number DESC
+      `).bind(...ids).all<Record<string, unknown>>(),
     ]);
     const sourcesByEvent = groupBy(sourceRows.results, "event_id");
     const citationsByEvent = groupBy(citationRows.results, "event_id");
+    const revisionsByEvent = groupBy(revisionRows.results, "event_id");
     return rows.map((row) => eventAdminViewSchema.parse({
       id: row.id,
       candidateId: row.candidate_id,
@@ -347,9 +444,38 @@ export class D1EventWorkflowRepository {
         claim: String(citation.claim),
         supports: parseStringArray(citation.supports_json),
       })),
+      revisions: (revisionsByEvent.get(String(row.id)) ?? []).map((revision) => ({
+        id: String(revision.id),
+        revisionNumber: Number(revision.revision_number),
+        actorEmail: String(revision.actor_email),
+        note: String(revision.note),
+        createdAt: String(revision.created_at),
+      })),
     }));
   }
 }
+
+function editedQualityIssues(event: EventAdminView, edit: EventEditInput): string[] {
+  const issues: string[] = [];
+  if (event.citations.length === 0) issues.push("citations_missing");
+  if (event.confidence < 0.8) issues.push("confidence_below_0_8");
+  if (event.evidenceLevel === "lead_only") issues.push("lead_only_cannot_publish");
+  if (!edit.recommendedAction && ["pricing", "policy"].includes(event.eventType)) issues.push("recommended_action_missing");
+  return issues;
+}
+
+function topicLabel(eventType: string): string {
+  return ({ model_release: "模型发布", api_change: "API 变化", pricing: "价格变化", policy: "政策", funding: "融资", research: "研究" } as Record<string, string>)[eventType] ?? eventType;
+}
+
+const knownEntities = [
+  { slug: "openai", name: "OpenAI", kind: "company", description: "AI 模型与产品公司。", aliases: ["openai", "gpt"] },
+  { slug: "anthropic", name: "Anthropic", kind: "company", description: "Claude 系列模型开发商。", aliases: ["anthropic", "claude"] },
+  { slug: "google", name: "Google", kind: "company", description: "Gemini 与 AI 平台提供方。", aliases: ["google", "gemini", "deepmind"] },
+  { slug: "deepseek", name: "DeepSeek", kind: "company", description: "基础模型与 API 提供方。", aliases: ["deepseek"] },
+  { slug: "vllm", name: "vLLM", kind: "project", description: "开源大模型推理与服务项目。", aliases: ["vllm"] },
+  { slug: "meta", name: "Meta", kind: "company", description: "Llama 系列模型开发方。", aliases: ["meta", "llama"] },
+] as const;
 
 function eventSelectSql(suffix: string): string {
   return `

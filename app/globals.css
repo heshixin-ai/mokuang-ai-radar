@@ -258,6 +258,26 @@ button:disabled { opacity: .5; cursor: wait; }
 .review-decision span { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
 .review-decision p { margin: 9px 0 0; font-size: 12px; }
 .review-decision button { width: auto; }
+.edit-event-button { margin-top: 16px; border: 1px solid var(--ink); background: transparent; padding: 9px 12px; cursor: pointer; font-weight: 800; }
+.event-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0; padding: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.5); }
+.event-editor label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.event-editor input, .event-editor textarea { border: 1px solid var(--line); background: var(--card); padding: 10px; color: var(--ink); font: inherit; }
+.event-editor textarea { min-height: 88px; resize: vertical; }
+.event-editor > div { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+.event-editor button { border: 1px solid var(--ink); padding: 9px 13px; background: transparent; cursor: pointer; font-weight: 800; }
+.event-editor .approve-button { color: white; background: var(--ink); }
+.revision-history { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 12px; }
+.revision-history summary { cursor: pointer; font-weight: 800; }
+.revision-history li { margin: 9px 0; }
+.revision-history small { display: block; color: var(--muted); margin-top: 3px; }
+.timeline-shell, .timeline-hero { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding: 88px 0 52px; }
+.timeline-shell h1, .timeline-hero h1 { margin: 18px 0; font-size: clamp(46px, 7vw, 80px); letter-spacing: -.06em; }
+.timeline-shell > p, .timeline-hero p { max-width: 680px; color: var(--muted); line-height: 1.7; }
+.timeline-index { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 42px; }
+.timeline-index a { display: grid; gap: 42px; min-height: 160px; padding: 24px; border: 1px solid var(--line); background: var(--card); }
+.timeline-index a:hover { border-color: var(--brand); }
+.timeline-index strong { font-size: 22px; }
+.timeline-index span { color: var(--muted); font-size: 12px; }
 .review-decision-actions { display: flex; align-items: center; gap: 8px; }
 .review-decision-actions > span { margin: 0; color: var(--brand); font-weight: 800; }
 .review-decision-actions .approve-button, .publication-actions .approve-button { color: white; background: var(--ink); }

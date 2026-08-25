@@ -222,7 +222,7 @@ export const publicationActions = sqliteTable(
   {
     id: text("id").primaryKey(),
     eventId: text("event_id").notNull().references(() => events.id),
-    action: text("action", { enum: ["draft_created", "published", "withdrawn"] }).notNull(),
+    action: text("action", { enum: ["draft_created", "revised", "published", "withdrawn"] }).notNull(),
     actorId: text("actor_id").notNull(),
     actorEmail: text("actor_email").notNull(),
     note: text("note"),
@@ -230,6 +230,67 @@ export const publicationActions = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (table) => [index("idx_publication_actions_event_created").on(table.eventId, table.createdAt)],
+);
+
+export const eventRevisions = sqliteTable(
+  "event_revisions",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    revisionNumber: integer("revision_number").notNull(),
+    actorId: text("actor_id").notNull(),
+    actorEmail: text("actor_email").notNull(),
+    note: text("note").notNull(),
+    snapshotJson: text("snapshot_json").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_event_revisions_event_number").on(table.eventId, table.revisionNumber),
+    index("idx_event_revisions_event_created").on(table.eventId, table.createdAt),
+  ],
+);
+
+export const entities = sqliteTable(
+  "entities",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ["company", "project", "model"] }).notNull(),
+    description: text("description").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("idx_entities_slug").on(table.slug)],
+);
+
+export const eventEntities = sqliteTable(
+  "event_entities",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    entityId: text("entity_id").notNull().references(() => entities.id),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_event_entities_event_entity").on(table.eventId, table.entityId),
+    index("idx_event_entities_entity").on(table.entityId),
+  ],
+);
+
+export const eventTopics = sqliteTable(
+  "event_topics",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    slug: text("slug").notNull(),
+    label: text("label").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_event_topics_event_slug").on(table.eventId, table.slug),
+    index("idx_event_topics_slug").on(table.slug),
+  ],
 );
 
 export const candidateClusters = sqliteTable(
