@@ -27,12 +27,36 @@ export function EventFeed({ events, demoMode = false }: { events: IntelligenceEv
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setIsHydrated(true));
-    return () => window.cancelAnimationFrame(frame);
+    let hashTimeout = 0;
+    const scrollToEvents = () => {
+      const root = document.documentElement;
+      const previousScrollBehavior = root.style.scrollBehavior;
+      root.style.scrollBehavior = "auto";
+      document.getElementById("events")?.scrollIntoView({ block: "start" });
+      root.style.scrollBehavior = previousScrollBehavior;
+    };
+    const frame = window.requestAnimationFrame(() => {
+      setIsHydrated(true);
+      if (window.location.hash === "#events") {
+        scrollToEvents();
+        hashTimeout = window.setTimeout(scrollToEvents, 250);
+      }
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(hashTimeout);
+    };
   }, []);
   const visibleEvents = useMemo(
     () => events.filter((event) => activeFilter === "all" || event.eventType === activeFilter),
     [activeFilter, events],
+  );
+  const filterCounts = useMemo(
+    () => Object.fromEntries(filters.map((filter) => [
+      filter.value,
+      filter.value === "all" ? events.length : events.filter((event) => event.eventType === filter.value).length,
+    ])) as Record<"all" | EventType, number>,
+    [events],
   );
 
   return (
@@ -44,18 +68,25 @@ export function EventFeed({ events, demoMode = false }: { events: IntelligenceEv
           <p className="feed-count" aria-live="polite">当前显示 {visibleEvents.length} 条{demoMode ? "演示" : "已发布"}事件</p>
         </div>
         <div className="filter-row" aria-label="按事件类型筛选">
-          {filters.map((filter) => (
-            <button
-              className={`filter ${activeFilter === filter.value ? "active" : ""}`}
-              key={filter.value}
-              onClick={() => setActiveFilter(filter.value)}
-              type="button"
-              aria-pressed={activeFilter === filter.value}
-              disabled={!isHydrated}
-            >
-              {filter.label}
-            </button>
-          ))}
+          {filters.map((filter) => {
+            const count = filterCounts[filter.value];
+            const unavailable = filter.value !== "all" && count === 0;
+
+            return (
+              <button
+                className={`filter ${activeFilter === filter.value ? "active" : ""}`}
+                key={filter.value}
+                onClick={() => setActiveFilter(filter.value)}
+                type="button"
+                aria-pressed={activeFilter === filter.value}
+                aria-label={`${filter.label}，${count} 条事件`}
+                disabled={!isHydrated || unavailable}
+                title={unavailable ? "暂无这类事件" : undefined}
+              >
+                {filter.label}<small aria-hidden="true">{count}</small>
+              </button>
+            );
+          })}
         </div>
       </div>
 

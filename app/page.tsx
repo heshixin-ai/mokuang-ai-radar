@@ -145,7 +145,7 @@ export default async function Home() {
 
       <section className="home-final-cta" id="about">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
-        <h2>不用追完所有新闻。<br />重要变化，模况替你盯着。</h2>
+        <h2><span>不用追完所有新闻。</span><span>重要变化，模况替你盯着。</span></h2>
         <div>
           <Link className="home-primary-action" href="/subscribe">订阅每日情报 <span aria-hidden="true">→</span></Link>
           <Link href="/about">了解我们如何筛选</Link>
