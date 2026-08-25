@@ -1,6 +1,7 @@
 import { getReviewActorFromHeaders } from "@/lib/auth/review-access";
 import { getReviewDashboard, IngestionServiceError } from "@/lib/ingestion/service";
 import { errorResponse } from "@/lib/http/error";
+import { ZodError } from "zod";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,9 @@ export async function GET(request: Request) {
     if (error instanceof IngestionServiceError) {
       return errorResponse(error.httpStatus, error.code, error.publicMessage);
     }
+    console.error("mokuang_dashboard_load_failed", error instanceof ZodError
+      ? error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code }))
+      : { name: error instanceof Error ? error.name : "UnknownError" });
     return errorResponse(500, "DASHBOARD_LOAD_FAILED", "审核数据暂时无法读取。");
   }
 }

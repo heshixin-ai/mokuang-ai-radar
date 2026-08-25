@@ -2,7 +2,7 @@
 
 面向中文 AI 产品经理、开发者和小型创业团队的产品与模型变更雷达。模况把分散来源整理成带证据、影响判断和建议行动的变化事件。
 
-当前进入 Stage 03 采集与审核：公开信息流继续使用版本化演示事件；内部后台接入受控官方 RSS，把来源文档和 AI 候选持久化到 D1，并由人工批准或驳回。批准只进入下一阶段，不会自动发布。
+当前完成 Stage 04 定时扩源：公开信息流继续使用版本化演示事件；内部后台每 30 分钟检查 12 个受控官方 RSS/Atom 来源，把有限数量的新文档交给 AI 生成待审核候选。批准只进入下一阶段，不会自动发布。
 
 ## 当前已实现
 
@@ -12,7 +12,9 @@
 - `GET /api/v1/events`
 - `GET /api/v1/events/:id`
 - `POST /api/v1/pipeline/preview`
-- 3 个经登记的官方 RSS 来源：OpenAI News、Google Blog、GitHub Changelog
+- 12 个经真实解析验证的官方 RSS/Atom/Release 来源
+- Cloudflare Cron 每 30 分钟检查到期来源，带来源数、并发、每源条数和 AI 批次上限
+- 原子防重入、scheduled/manual 运行记录和失败隔离
 - RSS/Atom 解析、HTTPS 主机白名单、重定向校验、1.5 MB 大小上限和 URL 去重
 - D1 持久化：来源健康、采集运行、短摘录文档、事件候选和审核审计
 - `/review` 内部采集与审核工作台
@@ -25,7 +27,7 @@
 - 统一 API 错误结构
 - mock 领域测试、构建后渲染测试和浏览器验收
 
-暂未实现：定时调度、事件聚类入正式事件表、公开发布、实体时间线、订阅邮件和面向读者的账号体系。PRD 要求的 12–20 个来源与连续 7 天成功率需要在扩源阶段验收；本阶段先验证 3 个官方 RSS 的真实链路。
+暂未实现：事件聚类入正式事件表、公开发布、实体时间线、订阅邮件和面向读者的账号体系。12 个来源已完成单次真实解析和 Cron 冒烟；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
 
 ## 本地运行
 
@@ -60,6 +62,8 @@ AI_API_KEY=只填写在本地
 
 真实 Key 只能存放在未提交的 `.env.local` 或托管平台 Secret 中，不得进入前端、日志、响应或 Git。超时、重试、升级阈值和输出预算见 `.env.example`，未填写时使用安全默认值。
 
+Stage 04 调度容量由 `INGESTION_*` 配置控制。`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析；mock 环境只采集，不生成伪候选。
+
 本地审核后台默认 `REVIEW_AUTH_MODE=local`。托管环境必须改为 `chatgpt`，并通过 `REVIEW_ADMIN_EMAILS` 填写逗号分隔的审核员邮箱；未在白名单中的登录用户只能看到拒绝访问页面。
 
 ## API 示例
@@ -77,7 +81,7 @@ POST /api/v1/pipeline/preview
 Content-Type: application/json
 ```
 
-Stage 03 内部接口全部受审核权限保护：
+内部接口全部受审核权限保护：
 
 ```text
 GET  /api/v1/admin/dashboard
@@ -111,6 +115,13 @@ node --test tests/rendered-html.test.mjs
 
 Stage 03 同时验证离线状态机、真实 RSS、D1 迁移和真实模型“采集 → 持久化 → 候选 → 审核”链路。公开页仍显示演示数据，不能把内部候选当作已发布新闻。
 
+Stage 04 的真实来源回归可显式运行：
+
+```bash
+RUN_LIVE_SOURCE_TESTS=1 npm test -- tests/live-sources.test.ts
+curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
+```
+
 ## 文档与版本分支
 
 - 产品 PRD：`mokuang-prd.html`
@@ -118,9 +129,11 @@ Stage 03 同时验证离线状态机、真实 RSS、D1 迁移和真实模型“�
 - Stage 01 文档：`docs/stages/stage-01-core-intelligence.md`
 - Stage 02 文档：`docs/stages/stage-02-model-routing.md`
 - Stage 03 文档：`docs/stages/stage-03-ingestion-review.md`
+- Stage 04 文档：`docs/stages/stage-04-scheduled-sources.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
 - `stage/02-model-routing`：真实模型适配与分级路由
 - `stage/03-ingestion-review`：受控来源采集、D1 候选队列与人工审核
+- `stage/04-scheduled-sources`：12 个官方来源、定时采集与有限自动分析
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。
