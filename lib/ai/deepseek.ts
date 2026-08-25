@@ -64,7 +64,7 @@ export class DeepSeekResponsesClient {
 
   constructor(
     private readonly config: AiConfig,
-    fetchImplementation: FetchImplementation = fetch,
+    fetchImplementation: FetchImplementation = (input, init) => fetch(input, init),
   ) {
     this.fetchImplementation = fetchImplementation;
   }

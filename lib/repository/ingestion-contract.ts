@@ -9,6 +9,8 @@ import type {
 
 export type ReviewActor = { id: string; email: string; displayName: string };
 export type ReviewAction = "approve" | "reject" | "reopen";
+export type RunTriggerKind = "manual" | "scheduled";
+export type DueSource = { id: string; lastSuccessAt: string | null };
 export type AnalysisExecutionMeta = {
   provider: "mock" | "deepseek";
   escalated: boolean;
@@ -24,7 +26,13 @@ export type AnalysisExecutionMeta = {
 
 export interface IngestionRepository {
   syncSources(sources: SourceDefinition[], now: string): Promise<void>;
-  createRun(input: { id: string; sourceId: string; triggeredBy: string; startedAt: string }): Promise<void>;
+  createRun(input: {
+    id: string;
+    sourceId: string;
+    triggerKind: RunTriggerKind;
+    triggeredBy: string;
+    startedAt: string;
+  }): Promise<boolean>;
   finishRun(input: {
     id: string;
     completedAt: string;
@@ -33,6 +41,8 @@ export interface IngestionRepository {
     duplicateCount: number;
   }): Promise<void>;
   failRun(input: { id: string; sourceId: string; completedAt: string; errorCode: string }): Promise<void>;
+  listDueSources(now: string, limit: number): Promise<DueSource[]>;
+  listPendingDocumentIds(limit: number): Promise<string[]>;
   insertDocument(input: {
     id: string;
     sourceId: string;

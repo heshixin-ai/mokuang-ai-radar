@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { readAiConfig } from "@/lib/ai/config";
 import { getReviewActorFromHeaders } from "@/lib/auth/review-access";
 import { fetchWithAllowlist, parseFeedXml } from "@/lib/ingestion/feed";
+import { runScheduledRefresh } from "@/lib/ingestion/scheduler";
 import {
   analyzeSourceDocument,
   runSourceIngestion,
   reviewEventCandidate,
 } from "@/lib/ingestion/service";
-import { getCuratedSource } from "@/lib/ingestion/sources";
+import { curatedSources, getCuratedSource } from "@/lib/ingestion/sources";
 import type {
   CandidateView,
   DashboardData,
@@ -59,6 +60,26 @@ describe("feed ingestion", () => {
     });
     await expect(fetchWithAllowlist(openAiSource, redirectingFetch as typeof fetch, 1_000))
       .rejects.toMatchObject({ code: "FEED_URL_NOT_ALLOWED" });
+  });
+
+  it("uses a URL guid when an official RSS item omits its link", async () => {
+    const huggingFaceSource = getCuratedSource("src-huggingface-blog")!;
+    const items = await parseFeedXml(`
+      <rss version="2.0"><channel><item>
+        <guid>https://huggingface.co/blog/model-release</guid>
+        <title>Model release on Hugging Face</title>
+        <pubDate>Tue, 25 Aug 2026 06:00:00 GMT</pubDate>
+        <description>A documented model release with availability and usage details.</description>
+      </item></channel></rss>
+    `, huggingFaceSource);
+    expect(items[0].canonicalUrl).toBe("https://huggingface.co/blog/model-release");
+  });
+
+  it("keeps exactly twelve approved, unique and controlled sources", () => {
+    expect(curatedSources).toHaveLength(12);
+    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(12);
+    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(12);
+    expect(curatedSources.every((source) => source.authorizationStatus === "approved")).toBe(true);
   });
 });
 
@@ -140,6 +161,36 @@ describe("persisted ingestion and review workflow", () => {
     expect(reopened.reviewStatus).toBe("pending");
     expect(repository.audit).toEqual(["approve", "reopen"]);
   });
+
+  it("runs a bounded scheduled refresh and analyzes only the configured batch", async () => {
+    const repository = new MemoryIngestionRepository();
+    let id = 0;
+    const summary = await runScheduledRefresh({
+      repository,
+      aiConfig: readAiConfig({ AI_PROVIDER: "mock" }),
+      schedulerConfig: {
+        INGESTION_SOURCE_BATCH_SIZE: 2,
+        INGESTION_SOURCE_CONCURRENCY: 2,
+        INGESTION_MAX_ITEMS_PER_SOURCE: 1,
+        INGESTION_ANALYSIS_BATCH_SIZE: 1,
+        INGESTION_ANALYSIS_MODE: "auto",
+      },
+      analysisEnabled: true,
+      clock: () => new Date("2026-08-25T06:00:00.000Z"),
+      idFactory: () => `scheduled-${id++}`,
+      fetchFeed: async (source) => [makeSourceItem(source)],
+    });
+
+    expect(summary).toMatchObject({
+      sourcesEligible: 2,
+      sourcesSucceeded: 2,
+      insertedCount: 2,
+      analysesAttempted: 1,
+      candidatesCreated: 1,
+    });
+    expect([...repository.runs.values()].every((run) => run.triggerKind === "scheduled")).toBe(true);
+    expect(repository.documents.filter((document) => document.status === "pending_analysis")).toHaveLength(1);
+  });
 });
 
 describe("review authorization", () => {
@@ -174,6 +225,15 @@ function makeItem(): NormalizedFeedItem {
   };
 }
 
+function makeSourceItem(source: SourceDefinition): NormalizedFeedItem {
+  const origin = new URL(source.homepageUrl).origin;
+  return {
+    ...makeItem(),
+    externalId: `update-${source.id}`,
+    canonicalUrl: `${origin}/mokuang-test/${source.id}`,
+  };
+}
+
 function steppedClock() {
   let step = 0;
   return () => new Date(Date.UTC(2026, 7, 25, 6, 0, step++));
@@ -183,13 +243,33 @@ class MemoryIngestionRepository implements IngestionRepository {
   documents: DocumentView[] = [];
   candidates: CandidateView[] = [];
   audit: string[] = [];
-  runs = new Map<string, { status: string }>();
+  runs = new Map<string, { status: string; triggerKind: "manual" | "scheduled" }>();
   private sources: SourceDefinition[] = [];
 
   async syncSources(sources: SourceDefinition[]) { this.sources = sources; }
-  async createRun(input: { id: string }) { this.runs.set(input.id, { status: "running" }); }
-  async finishRun(input: { id: string }) { this.runs.set(input.id, { status: "succeeded" }); }
-  async failRun(input: { id: string }) { this.runs.set(input.id, { status: "failed" }); }
+  async createRun(input: { id: string; triggerKind: "manual" | "scheduled" }) {
+    this.runs.set(input.id, { status: "running", triggerKind: input.triggerKind });
+    return true;
+  }
+  async finishRun(input: { id: string }) {
+    const run = this.runs.get(input.id)!;
+    this.runs.set(input.id, { ...run, status: "succeeded" });
+  }
+  async failRun(input: { id: string }) {
+    const run = this.runs.get(input.id)!;
+    this.runs.set(input.id, { ...run, status: "failed" });
+  }
+
+  async listDueSources(_now: string, limit: number) {
+    return this.sources.slice(0, limit).map((source) => ({ id: source.id, lastSuccessAt: null }));
+  }
+
+  async listPendingDocumentIds(limit: number) {
+    return this.documents
+      .filter((document) => document.status === "pending_analysis")
+      .slice(0, limit)
+      .map((document) => document.id);
+  }
 
   async insertDocument(input: { id: string; sourceId: string; item: NormalizedFeedItem; discoveredAt: string }) {
     if (this.documents.some((document) => document.canonicalUrl === input.item.canonicalUrl)) return false;

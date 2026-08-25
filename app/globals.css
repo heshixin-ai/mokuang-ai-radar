@@ -214,6 +214,17 @@ a { color: inherit; text-decoration: none; }
 .source-admin-card dd { margin: 0; text-align: right; }
 .source-admin-card button, .document-queue button, .review-controls button, .review-decision button { width: 100%; border: 1px solid var(--ink); background: transparent; padding: 9px 12px; cursor: pointer; font-size: 12px; font-weight: 800; }
 .source-admin-card button:hover, .document-queue button:hover { color: white; background: var(--ink); }
+.run-history { margin-top: 24px; padding: 20px; border: 1px solid var(--line); background: rgba(255,255,255,.38); }
+.run-history > div { display: flex; justify-content: space-between; gap: 24px; align-items: baseline; }
+.run-history h3, .run-history p { margin: 0; }
+.run-history h3 { font-size: 15px; }
+.run-history p { color: var(--muted); font-size: 11px; }
+.run-history ol { margin: 16px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.run-history li { display: grid; grid-template-columns: 48px minmax(160px, 1fr) 140px 130px; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: center; font-size: 11px; }
+.run-history li > span { color: var(--brand); font-weight: 800; }
+.run-history time { color: var(--muted); }
+.run-history li > b { justify-self: end; color: var(--muted); }
+.run-history li > b[data-status="failed"] { color: var(--signal); }
 button:disabled { opacity: .5; cursor: wait; }
 .document-queue, .candidate-queue { display: grid; }
 .document-queue > article { display: grid; grid-template-columns: 1fr 155px; column-gap: 30px; padding: 24px 0; border-bottom: 1px solid var(--line); }
@@ -297,6 +308,10 @@ button:disabled { opacity: .5; cursor: wait; }
   .review-controls { grid-template-columns: 1fr; }
   .review-controls > div { grid-template-columns: 1fr; }
   .review-decision { align-items: flex-start; flex-direction: column; }
+  .run-history > div { display: block; }
+  .run-history p { margin-top: 7px; }
+  .run-history li { grid-template-columns: 44px 1fr; }
+  .run-history time, .run-history li > b { grid-column: 2; justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

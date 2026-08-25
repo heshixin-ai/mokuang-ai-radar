@@ -106,7 +106,8 @@ export async function parseFeedXml(xml: string, source: SourceDefinition): Promi
   const normalized: Array<Omit<NormalizedFeedItem, "contentHash">> = [];
   for (const item of rawItems) {
     const title = cleanText(readText(item.title)).slice(0, 500);
-    const rawLink = readLink(item.link);
+    const guidOrId = readText(item.guid) || readText(item.id);
+    const rawLink = readLink(item.link) || (isHttpUrl(guidOrId) ? guidOrId : "");
     const publishedAt = normalizeDate(
       readText(item.pubDate) || readText(item.published) || readText(item.updated) || readText(item.date),
     );
@@ -124,7 +125,7 @@ export async function parseFeedXml(xml: string, source: SourceDefinition): Promi
       continue;
     }
 
-    const externalId = cleanText(readText(item.guid) || readText(item.id) || canonicalUrl).slice(0, 1_000);
+    const externalId = cleanText(guidOrId || canonicalUrl).slice(0, 1_000);
     const author = cleanText(
       readText(item.author) || readText(item["dc:creator"]),
     ).slice(0, 300) || null;
@@ -205,6 +206,10 @@ function decodeHtmlEntities(value: string): string {
 function normalizeDate(value: string): string | null {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
 }
 
 function canonicalizeItemUrl(value: string, source: SourceDefinition): string {

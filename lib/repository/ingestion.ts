@@ -1,4 +1,3 @@
-import { getD1 } from "@/db";
 import {
   candidateViewSchema,
   dashboardDataSchema,
@@ -12,11 +11,11 @@ import {
   type SourceDefinition,
 } from "@/lib/ingestion/types";
 import type { PipelinePreviewOutput } from "@/lib/domain/event";
-import type { AnalysisExecutionMeta, IngestionRepository, ReviewAction, ReviewActor } from "./ingestion-contract";
+import type { AnalysisExecutionMeta, DueSource, IngestionRepository, ReviewAction, ReviewActor, RunTriggerKind } from "./ingestion-contract";
 
 export type { IngestionRepository, ReviewAction, ReviewActor } from "./ingestion-contract";
 
-export function createD1IngestionRepository(database: D1Database = getD1()): IngestionRepository {
+export function createD1IngestionRepository(database: D1Database): IngestionRepository {
   return new D1IngestionRepository(database);
 }
 
@@ -64,17 +63,55 @@ class D1IngestionRepository implements IngestionRepository {
     )));
   }
 
-  async createRun(input: { id: string; sourceId: string; triggeredBy: string; startedAt: string }): Promise<void> {
-    await this.database.prepare(`
+  async createRun(input: {
+    id: string;
+    sourceId: string;
+    triggerKind: RunTriggerKind;
+    triggeredBy: string;
+    startedAt: string;
+  }): Promise<boolean> {
+    const result = await this.database.prepare(`
       INSERT INTO ingestion_runs (
         id, source_id, status, trigger_kind, triggered_by, started_at, created_at
-      ) VALUES (?, ?, 'running', 'manual', ?, ?, ?)
-    `).bind(input.id, input.sourceId, input.triggeredBy, input.startedAt, input.startedAt).run();
+      )
+      SELECT ?, s.id, 'running', ?, ?, ?, ?
+      FROM sources s
+      WHERE s.id = ?
+        AND (
+          ? = 'manual'
+          OR (
+            s.status = 'active'
+            AND s.authorization_status = 'approved'
+            AND (
+              s.last_attempt_at IS NULL
+              OR datetime(s.last_attempt_at, '+' || s.frequency_minutes || ' minutes') <= datetime(?)
+            )
+          )
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM ingestion_runs active_run
+          WHERE active_run.source_id = s.id
+            AND active_run.status = 'running'
+            AND datetime(active_run.started_at) > datetime(?, '-15 minutes')
+        )
+    `).bind(
+      input.id,
+      input.triggerKind,
+      input.triggeredBy,
+      input.startedAt,
+      input.startedAt,
+      input.sourceId,
+      input.triggerKind,
+      input.startedAt,
+      input.startedAt,
+    ).run();
+    if (Number(result.meta.changes ?? 0) === 0) return false;
     await this.database.prepare(`
       UPDATE sources
       SET last_attempt_at = ?, updated_at = ?
       WHERE id = ?
     `).bind(input.startedAt, input.startedAt, input.sourceId).run();
+    return true;
   }
 
   async finishRun(input: {
@@ -114,6 +151,38 @@ class D1IngestionRepository implements IngestionRepository {
         WHERE id = ?
       `).bind(input.errorCode, input.completedAt, input.sourceId),
     ]);
+  }
+
+  async listDueSources(now: string, limit: number): Promise<DueSource[]> {
+    const rows = await this.database.prepare(`
+      SELECT s.id, s.last_success_at
+      FROM sources s
+      WHERE s.status = 'active'
+        AND s.authorization_status = 'approved'
+        AND (
+          s.last_attempt_at IS NULL
+          OR datetime(s.last_attempt_at, '+' || s.frequency_minutes || ' minutes') <= datetime(?)
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM ingestion_runs active_run
+          WHERE active_run.source_id = s.id
+            AND active_run.status = 'running'
+            AND datetime(active_run.started_at) > datetime(?, '-15 minutes')
+        )
+      ORDER BY s.priority ASC, s.id ASC
+      LIMIT ?
+    `).bind(now, now, limit).all<{ id: string; last_success_at: string | null }>();
+    return rows.results.map((row) => ({ id: row.id, lastSuccessAt: row.last_success_at ?? null }));
+  }
+
+  async listPendingDocumentIds(limit: number): Promise<string[]> {
+    const rows = await this.database.prepare(`
+      SELECT id FROM source_documents
+      WHERE status = 'pending_analysis'
+      ORDER BY published_at DESC, discovered_at DESC
+      LIMIT ?
+    `).bind(limit).all<{ id: string }>();
+    return rows.results.map((row) => row.id);
   }
 
   async insertDocument(input: {
@@ -298,7 +367,7 @@ class D1IngestionRepository implements IngestionRepository {
       this.database.prepare(candidateSelectSql("ORDER BY c.created_at DESC LIMIT 100"))
         .all<Record<string, unknown>>(),
       this.database.prepare(`
-        SELECT r.id, r.source_id, s.name AS source_name, r.status, r.started_at, r.completed_at,
+        SELECT r.id, r.source_id, s.name AS source_name, r.status, r.trigger_kind, r.started_at, r.completed_at,
           r.discovered_count, r.inserted_count, r.duplicate_count, r.error_code
         FROM ingestion_runs r
         JOIN sources s ON s.id = r.source_id
@@ -433,6 +502,7 @@ function mapRun(row: Record<string, unknown>) {
     sourceId: row.source_id,
     sourceName: row.source_name,
     status: row.status,
+    triggerKind: row.trigger_kind,
     startedAt: row.started_at,
     completedAt: row.completed_at ?? null,
     discoveredCount: Number(row.discovered_count),

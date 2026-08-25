@@ -5,6 +5,7 @@ import { runMockPipeline } from "@/lib/ai/mock-pipeline";
 import { runDeepSeekPipeline } from "@/lib/ai/pipeline";
 import type { PipelinePreviewOutput } from "@/lib/domain/event";
 import type { AnalysisExecutionMeta, IngestionRepository, ReviewAction, ReviewActor } from "@/lib/repository/ingestion-contract";
+import type { RunTriggerKind } from "@/lib/repository/ingestion-contract";
 import { FeedIngestionError, fetchAndParseFeed, stableDocumentId } from "./feed";
 import { curatedSources, getCuratedSource } from "./sources";
 import type { DashboardData, NormalizedFeedItem, SourceDefinition } from "./types";
@@ -39,6 +40,9 @@ export async function runSourceIngestion(
     fetchFeed?: (source: SourceDefinition) => Promise<NormalizedFeedItem[]>;
     clock?: Clock;
     idFactory?: () => string;
+    triggerKind?: RunTriggerKind;
+    syncSources?: boolean;
+    maxItems?: number;
   } = {},
 ): Promise<{ runId: string; discoveredCount: number; insertedCount: number; duplicateCount: number }> {
   const source = getCuratedSource(sourceId);
@@ -51,11 +55,17 @@ export async function runSourceIngestion(
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const startedAt = clock().toISOString();
   const runId = `run_${idFactory()}`;
-  await repository.syncSources(curatedSources, startedAt);
-  await repository.createRun({ id: runId, sourceId, triggeredBy: actor.email, startedAt });
+  if (options.syncSources !== false) await repository.syncSources(curatedSources, startedAt);
+  const triggerKind = options.triggerKind ?? "manual";
+  const created = await repository.createRun({ id: runId, sourceId, triggerKind, triggeredBy: actor.email, startedAt });
+  if (!created) {
+    throw new IngestionServiceError("SOURCE_RUN_CONFLICT", 409, "该来源尚未到运行时间，或已有采集任务正在执行。");
+  }
 
   try {
-    const items = await (options.fetchFeed ?? fetchAndParseFeed)(source);
+    const fetchedItems = await (options.fetchFeed ?? fetchAndParseFeed)(source);
+    const maxItems = Math.max(1, Math.min(50, options.maxItems ?? 50));
+    const items = fetchedItems.slice(0, maxItems);
     let insertedCount = 0;
     for (const item of items) {
       const inserted = await repository.insertDocument({
@@ -213,6 +223,9 @@ function analysisErrorCode(error: unknown): string {
 }
 
 async function defaultRepository(): Promise<IngestionRepository> {
-  const { createD1IngestionRepository } = await import("@/lib/repository/ingestion");
-  return createD1IngestionRepository();
+  const [{ createD1IngestionRepository }, { getD1 }] = await Promise.all([
+    import("@/lib/repository/ingestion"),
+    import("@/db"),
+  ]);
+  return createD1IngestionRepository(getD1());
 }

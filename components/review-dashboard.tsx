@@ -130,6 +130,19 @@ export function ReviewDashboard() {
                 </article>
               ))}
             </div>
+            <div className="run-history" aria-label="最近采集运行">
+              <div><h3>最近运行</h3><p>定时任务每 30 分钟检查到期来源；每次均保留独立运行记录。</p></div>
+              <ol>
+                {dashboard.recentRuns.slice(0, 8).map((run) => (
+                  <li key={run.id}>
+                    <span>{run.triggerKind === "scheduled" ? "定时" : "手动"}</span>
+                    <strong>{run.sourceName}</strong>
+                    <time>{formatDate(run.startedAt)}</time>
+                    <b data-status={run.status}>{run.status === "succeeded" ? `新增 ${run.insertedCount}` : run.status === "failed" ? `失败 · ${run.errorCode ?? "未知"}` : "运行中"}</b>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </section>
 
           <section className="review-panel" aria-labelledby="documents-title">

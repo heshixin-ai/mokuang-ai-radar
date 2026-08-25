@@ -105,6 +105,7 @@ export const ingestionRunViewSchema = z.object({
   sourceId: z.string(),
   sourceName: z.string(),
   status: z.enum(["running", "succeeded", "failed"]),
+  triggerKind: z.enum(["manual", "scheduled"]),
   startedAt: z.string(),
   completedAt: z.string().nullable(),
   discoveredCount: z.number().int(),
