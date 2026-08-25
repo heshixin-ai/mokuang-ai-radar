@@ -12,10 +12,12 @@ export function SiteHeader() {
       </Link>
       <nav className="main-nav" aria-label="主导航">
         <Link className="active" href="/#events">情报</Link>
+        <Link href="/topics">主题</Link>
+        <Link href="/entities">实体</Link>
         <Link href="/#workflow">处理流程</Link>
         <Link href="/#about">关于</Link>
       </nav>
-      <Link className="subscribe-button" href="/#stage-note">订阅即将开放</Link>
+      <Link className="subscribe-button" href="/subscribe">订阅日报</Link>
     </header>
   );
 }

@@ -32,6 +32,8 @@ export function ReviewDashboard() {
   const [busy, setBusy] = useState<BusyAction>(null);
   const [activeStatus, setActiveStatus] = useState<ReviewStatus>("pending");
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
 
   const loadDashboard = useCallback(async () => {
     setError(null);
@@ -133,6 +135,26 @@ export function ReviewDashboard() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action, note }),
     }));
+  }
+
+  function beginEdit(event: EventAdminView) {
+    setEditingId(event.id);
+    setEdits((current) => ({ ...current, [event.id]: {
+      titleZh: event.titleZh, deckZh: event.deckZh, whatChanged: event.whatChanged,
+      before: event.before ?? "", after: event.after ?? "", whyItMatters: event.whyItMatters,
+      recommendedAction: event.recommendedAction ?? "", note: "人工复核并修订正式事件",
+    } }));
+  }
+
+  async function saveEdit(event: EventAdminView) {
+    const edit = edits[event.id];
+    if (!edit) return;
+    await runAction("event", event.id, () => fetch(`/api/v1/admin/events/${event.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...edit, before: edit.before || null, after: edit.after || null, recommendedAction: edit.recommendedAction || null }),
+    }));
+    setEditingId(null);
   }
 
   if ((!dashboard || !eventDashboard || !clusterDashboard) && !error) {
@@ -344,6 +366,17 @@ export function ReviewDashboard() {
                       </div>
                       <h3>{event.titleZh}</h3>
                       <p>{event.deckZh}</p>
+                      {editingId === event.id ? (
+                        <div className="event-editor">
+                          {(["titleZh", "deckZh", "whatChanged", "before", "after", "whyItMatters", "recommendedAction", "note"] as const).map((field) => (
+                            <label key={field}>{editLabels[field]}
+                              {field === "titleZh" ? <input value={edits[event.id]?.[field] ?? ""} onChange={(change) => setEdits((current) => ({ ...current, [event.id]: { ...current[event.id], [field]: change.target.value } }))} />
+                                : <textarea value={edits[event.id]?.[field] ?? ""} onChange={(change) => setEdits((current) => ({ ...current, [event.id]: { ...current[event.id], [field]: change.target.value } }))} />}
+                            </label>
+                          ))}
+                          <div><button type="button" onClick={() => setEditingId(null)}>取消</button><button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void saveEdit(event)}>保存为新修订版</button></div>
+                        </div>
+                      ) : event.status !== "published" && <button className="edit-event-button" type="button" disabled={Boolean(busy)} onClick={() => beginEdit(event)}>编辑并复核</button>}
                       <div className="draft-content-grid">
                         <div><span>为什么重要</span><p>{event.whyItMatters}</p></div>
                         <div><span>建议行动</span><p>{event.recommendedAction ?? "暂无建议行动。"}</p></div>
@@ -367,6 +400,7 @@ export function ReviewDashboard() {
                           </button>
                         )}
                       </div>
+                      {event.revisions.length > 0 && <details className="revision-history"><summary>修订记录（{event.revisions.length}）</summary><ol>{event.revisions.map((revision) => <li key={revision.id}><strong>v{revision.revisionNumber}</strong> {revision.note}<small>{revision.actorEmail} · {formatDate(revision.createdAt)}</small></li>)}</ol></details>}
                     </article>
                   ))}
                 </div>
@@ -378,6 +412,11 @@ export function ReviewDashboard() {
     </div>
   );
 }
+
+const editLabels = {
+  titleZh: "中文标题", deckZh: "一句话摘要", whatChanged: "发生了什么", before: "变化前",
+  after: "变化后", whyItMatters: "为什么重要", recommendedAction: "建议行动", note: "修订说明",
+};
 
 function Metric({ label, value, tone }: { label: string; value: number; tone: string }) {
   return <div className={`review-metric ${tone}`}><strong>{value}</strong><span>{label}</span></div>;

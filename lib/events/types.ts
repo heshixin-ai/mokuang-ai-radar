@@ -42,6 +42,13 @@ export const eventAdminViewSchema = z.object({
   updatedAt: z.string(),
   sources: z.array(sourceSchema).min(1),
   citations: z.array(citationSchema).min(1),
+  revisions: z.array(z.object({
+    id: z.string(),
+    revisionNumber: z.number().int().positive(),
+    actorEmail: z.string(),
+    note: z.string(),
+    createdAt: z.string(),
+  })).default([]),
 });
 
 export const eventAdminDashboardSchema = z.object({
@@ -58,6 +65,19 @@ export type EventWorkflowStatus = z.infer<typeof eventWorkflowStatusSchema>;
 export type EventQualityStatus = z.infer<typeof eventQualityStatusSchema>;
 export type EventAdminView = z.infer<typeof eventAdminViewSchema>;
 export type EventAdminDashboard = z.infer<typeof eventAdminDashboardSchema>;
+
+export const eventEditInputSchema = z.object({
+  titleZh: z.string().trim().min(6).max(120),
+  deckZh: z.string().trim().min(10).max(240),
+  whatChanged: z.string().trim().min(20).max(2_000),
+  before: z.string().trim().max(1_000).nullable(),
+  after: z.string().trim().max(1_000).nullable(),
+  whyItMatters: z.string().trim().min(20).max(2_000),
+  recommendedAction: z.string().trim().max(1_000).nullable(),
+  note: z.string().trim().min(3).max(1_000),
+}).strict();
+
+export type EventEditInput = z.infer<typeof eventEditInputSchema>;
 
 export type ApprovedCandidateMaterial = {
   candidate: {

@@ -26,7 +26,7 @@ export default async function Home() {
         <div className="hero-meta" id="stage-note">
           <span className="live-dot" />
           <strong>{demoMode ? "首条正式事件发布前保留演示数据" : "公开事件来自人工发布"}</strong>
-          <span>第六阶段 · 草稿必须通过质量门禁，并由审核员单独发布</span>
+          <span>第八阶段 · 正式事件支持人工修订、主题与实体时间线</span>
         </div>
       </section>
 
@@ -50,11 +50,11 @@ export default async function Home() {
 
       <section className="about-section" id="about">
         <div>
-          <span className="section-label">STAGE 06</span>
+          <span className="section-label">STAGE 08</span>
           <h2>从真实来源到正式事件，发布仍由人把关。</h2>
         </div>
         <div className="about-copy">
-          <p>当前版本每 30 分钟检查 20 个受控来源，完成采集、去重、AI 分析与候选审核。已批准内容可生成带引用的正式草稿，通过质量门禁后仍需人工发布；每日邮件将在后续阶段接入。</p>
+          <p>当前版本每 30 分钟检查 20 个受控来源，完成采集、去重、聚类、AI 分析与候选审核。正式草稿可人工修订并保留版本记录，通过质量门禁后才可发布；主题与实体时间线只展示正式事件。</p>
           <Link href="/api/v1/events">查看事件 API <span aria-hidden="true">↗</span></Link>
         </div>
       </section>
@@ -64,7 +64,7 @@ export default async function Home() {
           <span className="brand-mark">模</span>
           <span><strong>模况</strong><small>MOKUANG</small></span>
         </div>
-        <p>AI 产品与模型变更雷达 · Stage 06 Event Publishing</p>
+        <p>AI 产品与模型变更雷达 · Stage 08 Reading &amp; Revisions</p>
         <a href="#top">回到顶部 ↑</a>
       </footer>
     </main>
