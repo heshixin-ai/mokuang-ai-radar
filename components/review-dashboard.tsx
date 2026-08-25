@@ -102,7 +102,7 @@ export function ReviewDashboard() {
           <section className="review-panel" aria-labelledby="sources-title">
             <div className="review-panel-heading">
               <div><span>01</span><h2 id="sources-title">受控来源</h2></div>
-              <p>只访问登记过的官方 RSS，不接受任意网址。</p>
+              <p>只访问登记过的 RSS、Release 与专用公开页面，不接受任意网址。</p>
             </div>
             <div className="source-admin-grid">
               {dashboard.sources.map((source) => (

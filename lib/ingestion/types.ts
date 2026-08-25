@@ -7,7 +7,7 @@ export const sourceDefinitionSchema = z.object({
   homepageUrl: z.string().url(),
   feedUrl: z.string().url(),
   sourceType: z.enum(["official", "media", "research", "community"]),
-  fetchMethod: z.enum(["rss", "atom"]),
+  fetchMethod: z.enum(["rss", "atom", "html"]),
   status: z.enum(["active", "paused"]),
   priority: z.number().int().positive(),
   frequencyMinutes: z.number().int().min(5),
