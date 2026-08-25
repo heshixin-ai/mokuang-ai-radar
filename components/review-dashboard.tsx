@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EventAdminDashboard, EventAdminView } from "@/lib/events/types";
+import type { ClusterDashboard, ClusterDecisionView } from "@/lib/clustering/types";
 import type { CandidateView, DashboardData, ReviewStatus } from "@/lib/ingestion/types";
 
-type BusyAction = { kind: "source" | "document" | "candidate" | "draft" | "event"; id: string } | null;
+type BusyAction = { kind: "source" | "document" | "candidate" | "cluster" | "draft" | "event"; id: string } | null;
 type ApiEnvelope<T> = { data: T; error?: never } | { data?: never; error: { message: string } };
 
 const statusLabels: Record<ReviewStatus, string> = {
@@ -25,6 +26,7 @@ const eventTypeLabels: Record<string, string> = {
 export function ReviewDashboard() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [eventDashboard, setEventDashboard] = useState<EventAdminDashboard | null>(null);
+  const [clusterDashboard, setClusterDashboard] = useState<ClusterDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyAction>(null);
@@ -34,18 +36,22 @@ export function ReviewDashboard() {
   const loadDashboard = useCallback(async () => {
     setError(null);
     try {
-      const [reviewResponse, eventResponse] = await Promise.all([
+      const [reviewResponse, eventResponse, clusterResponse] = await Promise.all([
         fetch("/api/v1/admin/dashboard", { cache: "no-store" }),
         fetch("/api/v1/admin/events", { cache: "no-store" }),
+        fetch("/api/v1/admin/clusters", { cache: "no-store" }),
       ]);
-      const [reviewPayload, eventPayload] = await Promise.all([
+      const [reviewPayload, eventPayload, clusterPayload] = await Promise.all([
         readPayload<DashboardData>(reviewResponse),
         readPayload<EventAdminDashboard>(eventResponse),
+        readPayload<ClusterDashboard>(clusterResponse),
       ]);
       if (!reviewResponse.ok || !reviewPayload.data) throw new Error(reviewPayload.error?.message ?? "审核数据读取失败。");
       if (!eventResponse.ok || !eventPayload.data) throw new Error(eventPayload.error?.message ?? "发布数据读取失败。");
+      if (!clusterResponse.ok || !clusterPayload.data) throw new Error(clusterPayload.error?.message ?? "聚类数据读取失败。");
       setDashboard(reviewPayload.data);
       setEventDashboard(eventPayload.data);
+      setClusterDashboard(clusterPayload.data);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "审核数据读取失败。");
     }
@@ -73,6 +79,7 @@ export function ReviewDashboard() {
         kind === "source" ? "采集完成，新内容已进入待分析区。"
           : kind === "document" ? "分析完成，结果已进入候选队列。"
             : kind === "candidate" ? "审核状态已保存；没有触发公开发布。"
+              : kind === "cluster" ? "聚类建议已更新；合并后的事件会重新经过质量复核。"
               : kind === "draft" ? "正式事件草稿已生成；仍需通过质量门禁并单独发布。"
                 : "事件发布状态已更新，并保留了审计记录。",
       );
@@ -103,6 +110,18 @@ export function ReviewDashboard() {
     }));
   }
 
+  async function clusterCandidate(candidate: CandidateView) {
+    await runAction("cluster", candidate.id, () => fetch(`/api/v1/admin/candidates/${candidate.id}/cluster`, { method: "POST" }));
+  }
+
+  async function reviewCluster(decision: ClusterDecisionView, action: "confirm_merge" | "keep_separate") {
+    await runAction("cluster", decision.id, () => fetch(`/api/v1/admin/clusters/${decision.id}/review`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, note: notes[decision.id]?.trim() || null }),
+    }));
+  }
+
   async function transitionEvent(event: EventAdminView, action: "publish" | "withdraw") {
     const note = notes[event.id]?.trim() || null;
     if (action === "withdraw" && !note) {
@@ -116,7 +135,7 @@ export function ReviewDashboard() {
     }));
   }
 
-  if ((!dashboard || !eventDashboard) && !error) {
+  if ((!dashboard || !eventDashboard || !clusterDashboard) && !error) {
     return <div className="review-loading" role="status">正在读取来源与候选队列…</div>;
   }
 
@@ -247,11 +266,13 @@ export function ReviewDashboard() {
                       <div className="review-decision">
                         <div><strong>{statusLabels[candidate.reviewStatus]}</strong><span>{candidate.reviewedBy ?? "—"} · {formatDate(candidate.reviewedAt)}</span>{candidate.reviewNote && <p>{candidate.reviewNote}</p>}</div>
                         <div className="review-decision-actions">
-                          {candidate.reviewStatus === "approved" && !eventDashboard?.events.some((event) => event.candidateId === candidate.id) && (
-                            <button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void createDraft(candidate)}>
-                              {busy?.kind === "draft" && busy.id === candidate.id ? "生成中…" : "生成正式草稿"}
-                            </button>
+                          {candidate.reviewStatus === "approved" && !eventDashboard?.events.some((event) => event.candidateId === candidate.id) && !clusterDashboard?.decisions.some((decision) => decision.candidateId === candidate.id) && (
+                            <button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void clusterCandidate(candidate)}>检查重复事件</button>
                           )}
+                          {candidate.reviewStatus === "approved" && !eventDashboard?.events.some((event) => event.candidateId === candidate.id) && clusterDashboard?.decisions.some((decision) => decision.candidateId === candidate.id && decision.action === "create_new" && decision.status !== "proposed") && (
+                            <button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void createDraft(candidate)}>{busy?.kind === "draft" && busy.id === candidate.id ? "生成中…" : "生成正式草稿"}</button>
+                          )}
+                          {clusterDashboard?.decisions.some((decision) => decision.candidateId === candidate.id && decision.status === "proposed") && <span>等待处理合并建议</span>}
                           {candidate.reviewStatus === "approved" && eventDashboard?.events.some((event) => event.candidateId === candidate.id) && <span>已生成正式草稿</span>}
                           <button type="button" disabled={Boolean(busy)} onClick={() => void reviewCandidate(candidate, "reopen")}>重新打开</button>
                         </div>
@@ -263,10 +284,43 @@ export function ReviewDashboard() {
             ) : <Empty text={`当前没有${statusLabels[activeStatus]}候选。`} />}
           </section>
 
+          {clusterDashboard && (
+            <section className="review-panel" aria-labelledby="clusters-title">
+              <div className="review-panel-heading">
+                <div><span>04</span><h2 id="clusters-title">跨来源聚类</h2></div>
+                <p>规则只提出建议；相似候选必须由审核员确认合并或保留为独立事件。</p>
+              </div>
+              <div className="publication-stats">
+                <Metric label="待判断" value={clusterDashboard.counts.proposed} tone="red" />
+                <Metric label="已合并" value={clusterDashboard.counts.merged} tone="green" />
+                <Metric label="独立事件" value={clusterDashboard.counts.separate} tone="muted" />
+              </div>
+              {clusterDashboard.decisions.filter((decision) => decision.status === "proposed").length > 0 ? (
+                <div className="candidate-queue">
+                  {clusterDashboard.decisions.filter((decision) => decision.status === "proposed").map((decision) => (
+                    <article className="candidate-review-card" key={decision.id}>
+                      <div className="candidate-review-meta"><span>{decision.action === "merge_suggested" ? "建议合并" : "需要判断"}</span><span>相似度 {Math.round(decision.similarity * 100)}%</span></div>
+                      <h3>{decision.candidateTitle}</h3>
+                      <p>可能属于：{decision.targetEventTitle ?? "未知事件"}</p>
+                      <ul>{decision.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                      <div className="review-controls">
+                        <label>判断备注<textarea value={notes[decision.id] ?? ""} maxLength={1000} onChange={(change) => setNotes((current) => ({ ...current, [decision.id]: change.target.value }))} /></label>
+                        <div>
+                          <button type="button" disabled={Boolean(busy)} onClick={() => void reviewCluster(decision, "keep_separate")}>保留独立事件</button>
+                          <button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void reviewCluster(decision, "confirm_merge")}>确认合并来源</button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <Empty text="当前没有需要人工判断的聚类建议。" />}
+            </section>
+          )}
+
           {eventDashboard && (
             <section className="review-panel" aria-labelledby="events-title">
               <div className="review-panel-heading">
-                <div><span>04</span><h2 id="events-title">正式事件与发布门禁</h2></div>
+                <div><span>05</span><h2 id="events-title">正式事件与发布门禁</h2></div>
                 <p>草稿必须通过结构、引用与置信度检查；发布和撤下都需要人工操作。</p>
               </div>
               <div className="publication-stats" aria-label="发布概览">

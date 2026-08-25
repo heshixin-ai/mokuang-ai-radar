@@ -2,6 +2,7 @@ import { readAiConfig, type AiConfig } from "@/lib/ai/config";
 import { generateEventDraft } from "@/lib/ai/drafting";
 import { AiPipelineError } from "@/lib/ai/errors";
 import { evaluateDraftQuality } from "@/lib/events/quality";
+import { ClusteringError, ensureCandidateCanCreateEvent } from "@/lib/clustering/service";
 import type { EventAdminDashboard, EventAdminView } from "@/lib/events/types";
 import { getD1 } from "@/db";
 import { D1EventWorkflowRepository } from "@/lib/repository/event-workflow";
@@ -36,6 +37,14 @@ export async function createEventDraft(
   const repository = options.repository ?? new D1EventWorkflowRepository(getD1());
   const existing = await repository.getByCandidateId(candidateId);
   if (existing) return existing;
+  try {
+    await ensureCandidateCanCreateEvent(candidateId);
+  } catch (error) {
+    if (error instanceof ClusteringError) {
+      throw new EventWorkflowError(error.code, error.httpStatus, error.publicMessage);
+    }
+    throw error;
+  }
   const material = await repository.getApprovedCandidateMaterial(candidateId);
   if (!material) {
     throw new EventWorkflowError("CANDIDATE_NOT_APPROVED", 409, "只有已批准候选才能生成正式事件草稿。");
