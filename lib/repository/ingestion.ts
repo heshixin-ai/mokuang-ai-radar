@@ -169,7 +169,11 @@ class D1IngestionRepository implements IngestionRepository {
             AND active_run.status = 'running'
             AND datetime(active_run.started_at) > datetime(?, '-15 minutes')
         )
-      ORDER BY s.priority ASC, s.id ASC
+      ORDER BY
+        CASE WHEN s.last_attempt_at IS NULL THEN 0 ELSE 1 END ASC,
+        datetime(s.last_attempt_at) ASC,
+        s.priority ASC,
+        s.id ASC
       LIMIT ?
     `).bind(now, now, limit).all<{ id: string; last_success_at: string | null }>();
     return rows.results.map((row) => ({ id: row.id, lastSuccessAt: row.last_success_at ?? null }));

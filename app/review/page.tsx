@@ -19,9 +19,9 @@ export default async function ReviewPage() {
       <section className="review-shell">
         <header className="review-hero">
           <div>
-            <span className="section-label">STAGE 03 · INTERNAL REVIEW</span>
+            <span className="section-label">STAGE 05 · COVERAGE REVIEW</span>
             <h1>把来源变成候选，<br />把发布留给人。</h1>
-            <p>先采集公开 RSS，再逐条调用 AI 分析。批准只进入后续发布准备，不会直接出现在公开信息流。</p>
+            <p>从登记的 RSS、Release 与公开更新页采集，再逐条调用 AI 分析。批准只进入后续发布准备，不会直接出现在公开信息流。</p>
           </div>
           <div className="review-actor">
             <span>当前审核员</span>

@@ -12,7 +12,7 @@ describe.runIf(process.env.RUN_LIVE_SOURCE_TESTS === "1")("live curated sources"
       }))));
     }
 
-    expect(results).toHaveLength(12);
+    expect(results).toHaveLength(20);
     expect(results.filter((result) => result.count === 0)).toEqual([]);
   }, 120_000);
 });

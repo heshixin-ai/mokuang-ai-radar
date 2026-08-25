@@ -4,6 +4,7 @@ import { normalizedFeedItemSchema, type NormalizedFeedItem, type SourceDefinitio
 const MAX_FEED_BYTES = 1_500_000;
 const MAX_REDIRECTS = 3;
 const MAX_ITEMS = 50;
+const MAX_HTML_ITEMS = 10;
 const TRACKING_PARAMETERS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid"]);
 
 export class FeedIngestionError extends Error {
@@ -25,29 +26,33 @@ export async function fetchAndParseFeed(
 ): Promise<NormalizedFeedItem[]> {
   const response = await fetchWithAllowlist(source, options.fetchImpl ?? fetch, options.timeoutMs ?? 12_000);
   const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-  if (!/(xml|rss|atom|text\/plain)/.test(contentType)) {
-    throw new FeedIngestionError("FEED_CONTENT_TYPE_UNSUPPORTED", "Source did not return an XML feed");
+  const isHtmlSource = source.fetchMethod === "html";
+  if (isHtmlSource ? !contentType.includes("text/html") : !/(xml|rss|atom|text\/plain)/.test(contentType)) {
+    throw new FeedIngestionError("FEED_CONTENT_TYPE_UNSUPPORTED", "Source returned an unsupported content type");
   }
-
-  const contentLength = Number(response.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_FEED_BYTES) {
-    throw new FeedIngestionError("FEED_TOO_LARGE", "Feed exceeds the configured size limit");
-  }
-
-  const bytes = await response.arrayBuffer();
-  if (bytes.byteLength > MAX_FEED_BYTES) {
-    throw new FeedIngestionError("FEED_TOO_LARGE", "Feed exceeds the configured size limit");
-  }
-
-  return parseFeedXml(new TextDecoder().decode(bytes), source);
+  const body = await readLimitedBody(response);
+  if (!isHtmlSource) return parseFeedXml(body, source);
+  return parseControlledHtmlSource(body, source, async (url) => {
+    const articleResponse = await fetchWithAllowlist(
+      source,
+      options.fetchImpl ?? fetch,
+      options.timeoutMs ?? 12_000,
+      url,
+    );
+    if (!(articleResponse.headers.get("content-type")?.toLowerCase() ?? "").includes("text/html")) {
+      throw new FeedIngestionError("FEED_CONTENT_TYPE_UNSUPPORTED", "Article did not return HTML");
+    }
+    return readLimitedBody(articleResponse);
+  });
 }
 
 export async function fetchWithAllowlist(
   source: SourceDefinition,
   fetchImpl: typeof fetch,
   timeoutMs: number,
+  initialUrl: string | URL = source.feedUrl,
 ): Promise<Response> {
-  let currentUrl = new URL(source.feedUrl);
+  let currentUrl = new URL(initialUrl, source.feedUrl);
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     assertAllowedUrl(currentUrl, source.allowedHosts);
     const controller = new AbortController();
@@ -87,6 +92,18 @@ export async function fetchWithAllowlist(
   }
 
   throw new FeedIngestionError("FEED_REDIRECT_REJECTED", "Source exceeded redirect limit");
+}
+
+async function readLimitedBody(response: Response): Promise<string> {
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_FEED_BYTES) {
+    throw new FeedIngestionError("FEED_TOO_LARGE", "Source exceeds the configured size limit");
+  }
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > MAX_FEED_BYTES) {
+    throw new FeedIngestionError("FEED_TOO_LARGE", "Source exceeds the configured size limit");
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 export async function parseFeedXml(xml: string, source: SourceDefinition): Promise<NormalizedFeedItem[]> {
@@ -143,6 +160,109 @@ export async function parseFeedXml(xml: string, source: SourceDefinition): Promi
     ...item,
     contentHash: await sha256Hex(`${item.title}\n${item.contentExcerpt}`),
   })));
+}
+
+export async function parseControlledHtmlSource(
+  html: string,
+  source: SourceDefinition,
+  loadPage?: (url: string) => Promise<string>,
+): Promise<NormalizedFeedItem[]> {
+  if (source.id === "src-deepseek-api-changelog") return parseDeepSeekChangelog(html, source);
+  if (source.id === "src-kimi-platform-blog") return parseKimiBlog(html, source, loadPage);
+  throw new FeedIngestionError("HTML_SOURCE_UNSUPPORTED", "HTML source does not have a controlled parser");
+}
+
+async function parseDeepSeekChangelog(html: string, source: SourceDefinition): Promise<NormalizedFeedItem[]> {
+  const article = extractArticleHtml(html);
+  const rawItems: Array<Omit<NormalizedFeedItem, "contentHash">> = [];
+  const datePattern = /<h2\b[^>]*id="date-(\d{4}-\d{2}-\d{2})"[^>]*>[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|<\/article>|$)/gi;
+  for (const dateMatch of article.matchAll(datePattern)) {
+    const [, date, section] = dateMatch;
+    const headings = [...section.matchAll(/<h3\b[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h3>/gi)];
+    for (let index = 0; index < headings.length; index += 1) {
+      const heading = headings[index];
+      const nextHeading = headings[index + 1];
+      const title = cleanText(heading[2]).slice(0, 500);
+      const bodyStart = (heading.index ?? 0) + heading[0].length;
+      const bodyEnd = nextHeading?.index ?? section.length;
+      const contentExcerpt = cleanText(`${title}. ${section.slice(bodyStart, bodyEnd)}`).slice(0, 4_000);
+      if (!title || contentExcerpt.length < 20) continue;
+      const canonicalUrl = canonicalizeItemUrl(`${source.feedUrl}#${heading[1]}`, source, true);
+      rawItems.push({
+        externalId: `${date}#${heading[1]}`,
+        canonicalUrl,
+        title,
+        author: source.name,
+        publishedAt: new Date(`${date}T00:00:00.000Z`).toISOString(),
+        contentExcerpt,
+      });
+    }
+  }
+  return addContentHashes(rawItems.slice(0, MAX_HTML_ITEMS));
+}
+
+async function parseKimiBlog(
+  html: string,
+  source: SourceDefinition,
+  loadPage?: (url: string) => Promise<string>,
+): Promise<NormalizedFeedItem[]> {
+  const rawItems = [...html.matchAll(/<div\b[^>]*class="[^"]*post-item[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)]
+    .map((match) => {
+      const link = match[1].match(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+      const date = match[1].match(/<time\b[^>]*datetime="([^"]+)"/i);
+      if (!link || !date) return null;
+      const title = cleanText(link[2]).slice(0, 500);
+      const canonicalUrl = canonicalizeItemUrl(link[1], source);
+      const publishedAt = normalizeDate(date[1]);
+      return title && publishedAt ? { title, canonicalUrl, publishedAt } : null;
+    })
+    .filter((item): item is { title: string; canonicalUrl: string; publishedAt: string } => Boolean(item))
+    .slice(0, MAX_HTML_ITEMS);
+
+  const enriched = await mapInBatches(rawItems, 3, async (item) => {
+    let articleText = "";
+    if (loadPage) {
+      try {
+        articleText = cleanText(extractArticleHtml(await loadPage(item.canonicalUrl)));
+      } catch {
+        articleText = "";
+      }
+    }
+    return {
+      externalId: item.canonicalUrl,
+      canonicalUrl: item.canonicalUrl,
+      title: item.title,
+      author: source.name,
+      publishedAt: item.publishedAt,
+      contentExcerpt: cleanText(`${item.title}. ${articleText || item.title}`).slice(0, 4_000),
+    };
+  });
+  return addContentHashes(enriched.filter((item) => item.contentExcerpt.length >= 20));
+}
+
+function extractArticleHtml(html: string): string {
+  return html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] ?? html;
+}
+
+async function addContentHashes(
+  items: Array<Omit<NormalizedFeedItem, "contentHash">>,
+): Promise<NormalizedFeedItem[]> {
+  return Promise.all(items.map(async (item) => normalizedFeedItemSchema.parse({
+    ...item,
+    contentHash: await sha256Hex(`${item.title}\n${item.contentExcerpt}`),
+  })));
+}
+
+async function mapInBatches<T, R>(
+  values: T[],
+  concurrency: number,
+  operation: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let index = 0; index < values.length; index += concurrency) {
+    results.push(...await Promise.all(values.slice(index, index + concurrency).map(operation)));
+  }
+  return results;
 }
 
 function extractItems(parsed: Record<string, unknown>): Array<Record<string, unknown>> {
@@ -212,10 +332,10 @@ function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
-function canonicalizeItemUrl(value: string, source: SourceDefinition): string {
+function canonicalizeItemUrl(value: string, source: SourceDefinition, preserveHash = false): string {
   const url = new URL(value, source.homepageUrl);
   assertAllowedUrl(url, source.allowedHosts);
-  url.hash = "";
+  if (!preserveHash) url.hash = "";
   for (const name of [...url.searchParams.keys()]) {
     if (name.toLowerCase().startsWith("utm_") || TRACKING_PARAMETERS.has(name.toLowerCase())) {
       url.searchParams.delete(name);

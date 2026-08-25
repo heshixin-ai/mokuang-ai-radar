@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readAiConfig } from "@/lib/ai/config";
 import { getReviewActorFromHeaders } from "@/lib/auth/review-access";
-import { fetchWithAllowlist, parseFeedXml } from "@/lib/ingestion/feed";
+import { fetchWithAllowlist, parseControlledHtmlSource, parseFeedXml } from "@/lib/ingestion/feed";
 import { runScheduledRefresh } from "@/lib/ingestion/scheduler";
 import {
   analyzeSourceDocument,
@@ -75,11 +75,36 @@ describe("feed ingestion", () => {
     expect(items[0].canonicalUrl).toBe("https://huggingface.co/blog/model-release");
   });
 
-  it("keeps exactly twelve approved, unique and controlled sources", () => {
-    expect(curatedSources).toHaveLength(12);
-    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(12);
-    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(12);
+  it("parses controlled DeepSeek and Kimi HTML sources without accepting arbitrary pages", async () => {
+    const deepSeek = getCuratedSource("src-deepseek-api-changelog")!;
+    const deepSeekItems = await parseControlledHtmlSource(`
+      <article><h2 id="date-2026-08-21">Date: 2026-08-21</h2>
+      <h3 id="vision-release">Vision API Release</h3><p>The API now accepts image input with a documented model identifier.</p>
+      <h3 id="pricing-update">Pricing Update</h3><p>Input token prices changed for the cache tier.</p></article>
+    `, deepSeek);
+    expect(deepSeekItems).toHaveLength(2);
+    expect(deepSeekItems[0].canonicalUrl).toContain("#vision-release");
+    expect(deepSeekItems[1].canonicalUrl).toContain("#pricing-update");
+
+    const kimi = getCuratedSource("src-kimi-platform-blog")!;
+    const kimiItems = await parseControlledHtmlSource(`
+      <article><div class="post-item"><h3><a href="/blog/posts/price-update">Kimi API 价格调整通知</a></h3>
+      <time dateTime="2026-08-20T00:00:00.000Z">2026年08月20日</time></div></article>
+    `, kimi, async () => "<article><p>Kimi API 公布新的输入与输出 Token 价格，自九月起生效。</p></article>");
+    expect(kimiItems[0]).toMatchObject({
+      canonicalUrl: "https://platform.kimi.com/blog/posts/price-update",
+      publishedAt: "2026-08-20T00:00:00.000Z",
+    });
+    expect(kimiItems[0].contentExcerpt).toContain("Token 价格");
+  });
+
+  it("keeps exactly twenty approved, unique and controlled sources", () => {
+    expect(curatedSources).toHaveLength(20);
+    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(20);
+    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(20);
     expect(curatedSources.every((source) => source.authorizationStatus === "approved")).toBe(true);
+    expect(curatedSources.filter((source) => source.fetchMethod === "html")).toHaveLength(2);
+    expect(curatedSources.filter((source) => source.sourceType === "media")).toHaveLength(2);
   });
 });
 

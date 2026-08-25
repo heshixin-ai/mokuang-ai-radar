@@ -8,7 +8,7 @@ export const sources = sqliteTable(
     homepageUrl: text("homepage_url").notNull(),
     feedUrl: text("feed_url").notNull(),
     sourceType: text("source_type", { enum: ["official", "media", "research", "community"] }).notNull(),
-    fetchMethod: text("fetch_method", { enum: ["rss", "atom"] }).notNull(),
+    fetchMethod: text("fetch_method", { enum: ["rss", "atom", "html"] }).notNull(),
     status: text("status", { enum: ["active", "paused"] }).notNull().default("active"),
     priority: integer("priority").notNull().default(100),
     frequencyMinutes: integer("frequency_minutes").notNull().default(30),
