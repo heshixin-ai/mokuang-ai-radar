@@ -22,8 +22,8 @@ export default function Home() {
         <p>模况关注“变化”而不是“文章”。每天用 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
         <div className="hero-meta" id="stage-note">
           <span className="live-dot" />
-          <strong>演示数据</strong>
-          <span>第一阶段 · 核心情报链路预览，不代表实时新闻</span>
+          <strong>公开页仍为演示数据</strong>
+          <span>第三阶段 · 真实采集与候选审核仅在内部后台运行</span>
         </div>
       </section>
 
@@ -47,11 +47,11 @@ export default function Home() {
 
       <section className="about-section" id="about">
         <div>
-          <span className="section-label">STAGE 01</span>
-          <h2>先证明每条情报值得相信。</h2>
+          <span className="section-label">STAGE 03</span>
+          <h2>真实来源已接入，发布仍由人把关。</h2>
         </div>
         <div className="about-copy">
-          <p>当前版本专注一件事：让用户能够从事件回到证据。真实抓取、每日邮件和账号体系会在这条核心链路通过验收后继续开发。</p>
+          <p>当前版本已能从受控官方 RSS 采集内容、去重、逐条生成候选并保存审核结果。公开信息流仍使用演示事件，定时更新、正式发布和每日邮件将在后续阶段接入。</p>
           <Link href="/api/v1/events">查看事件 API <span aria-hidden="true">↗</span></Link>
         </div>
       </section>
@@ -61,7 +61,7 @@ export default function Home() {
           <span className="brand-mark">模</span>
           <span><strong>模况</strong><small>MOKUANG</small></span>
         </div>
-        <p>AI 产品与模型变更雷达 · Stage 01 Demo</p>
+        <p>AI 产品与模型变更雷达 · Stage 03 Internal Review</p>
         <a href="#top">回到顶部 ↑</a>
       </footer>
     </main>

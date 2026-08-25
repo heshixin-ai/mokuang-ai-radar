@@ -3,6 +3,7 @@ import test from "node:test";
 
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
 workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+process.env.REVIEW_ADMIN_EMAILS = "reviewer@example.com";
 const { default: worker } = await import(workerUrl.href);
 
 function request(path, init) {
@@ -54,4 +55,23 @@ test("事件 API 返回受控 JSON，缺失事件返回统一错误", async () =
   const missing = await missingResponse.json();
   assert.equal(missing.error.code, "EVENT_NOT_FOUND");
   assert.ok(missing.error.requestId);
+});
+
+test("审核后台需要授权身份，并明确候选不会自动发布", async () => {
+  const anonymousResponse = await request("/review");
+  assert.ok([302, 307, 308].includes(anonymousResponse.status));
+  assert.match(anonymousResponse.headers.get("location") ?? "", /signin-with-chatgpt/);
+
+  const response = await request("/review", {
+    headers: {
+      "oai-authenticated-user-id": "reviewer-1",
+      "oai-authenticated-user-email": "reviewer@example.com",
+    },
+  });
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /把来源变成候选/);
+  assert.match(html, /把发布留给人/);
+  assert.match(html, /不会直接出现在公开信息流/);
+  assert.match(html, /采集与审核后台｜模况/);
 });
