@@ -137,3 +137,97 @@ export const reviewActions = sqliteTable(
   },
   (table) => [index("idx_review_actions_candidate_created").on(table.candidateId, table.createdAt)],
 );
+
+export const events = sqliteTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    candidateId: text("candidate_id").notNull().references(() => eventCandidates.id),
+    status: text("status", { enum: ["draft", "published", "withdrawn"] }).notNull().default("draft"),
+    eventType: text("event_type", {
+      enum: ["model_release", "api_change", "pricing", "policy", "funding", "research"],
+    }).notNull(),
+    titleZh: text("title_zh").notNull(),
+    deckZh: text("deck_zh").notNull(),
+    whatChanged: text("what_changed").notNull(),
+    beforeText: text("before_text"),
+    afterText: text("after_text"),
+    whyItMatters: text("why_it_matters").notNull(),
+    recommendedAction: text("recommended_action"),
+    affectedRolesJson: text("affected_roles_json").notNull(),
+    evidenceLevel: text("evidence_level", {
+      enum: ["official", "corroborated", "reported", "lead_only"],
+    }).notNull(),
+    confidence: real("confidence").notNull(),
+    needsReview: integer("needs_review", { mode: "boolean" }).notNull(),
+    reviewReasonsJson: text("review_reasons_json").notNull(),
+    announcedAt: text("announced_at"),
+    effectiveAt: text("effective_at"),
+    qualityStatus: text("quality_status", { enum: ["blocked", "ready"] }).notNull(),
+    qualityIssuesJson: text("quality_issues_json").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    modelId: text("model_id").notNull(),
+    provider: text("provider").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    latencyMs: integer("latency_ms").notNull().default(0),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    totalTokens: integer("total_tokens").notNull().default(0),
+    reasoningTokens: integer("reasoning_tokens").notNull().default(0),
+    publishedAt: text("published_at"),
+    publishedBy: text("published_by"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_events_candidate").on(table.candidateId),
+    index("idx_events_status_updated").on(table.status, table.updatedAt),
+    index("idx_events_published_at").on(table.publishedAt),
+  ],
+);
+
+export const eventSources = sqliteTable(
+  "event_sources",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    documentId: text("document_id").notNull().references(() => sourceDocuments.id),
+    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_event_sources_event_document").on(table.eventId, table.documentId),
+    index("idx_event_sources_document").on(table.documentId),
+  ],
+);
+
+export const eventCitations = sqliteTable(
+  "event_citations",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    documentId: text("document_id").notNull().references(() => sourceDocuments.id),
+    claim: text("claim").notNull(),
+    supportsJson: text("supports_json").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_event_citations_event").on(table.eventId),
+    index("idx_event_citations_document").on(table.documentId),
+  ],
+);
+
+export const publicationActions = sqliteTable(
+  "publication_actions",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    action: text("action", { enum: ["draft_created", "published", "withdrawn"] }).notNull(),
+    actorId: text("actor_id").notNull(),
+    actorEmail: text("actor_email").notNull(),
+    note: text("note"),
+    snapshotJson: text("snapshot_json").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("idx_publication_actions_event_created").on(table.eventId, table.createdAt)],
+);

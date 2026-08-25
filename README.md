@@ -2,7 +2,7 @@
 
 面向中文 AI 产品经理、开发者和小型创业团队的产品与模型变更雷达。模况把分散来源整理成带证据、影响判断和建议行动的变化事件。
 
-当前完成 Stage 05 覆盖扩展：公开信息流继续使用版本化演示事件；内部后台每 30 分钟检查 20 个受控官方、监管和可信媒体来源，把有限数量的新文档交给 AI 生成待审核候选。批准只进入下一阶段，不会自动发布。
+当前完成 Stage 06 正式事件与发布门禁：内部后台每 30 分钟检查 20 个受控来源，把有限数量的新文档交给 AI 生成待审核候选；批准候选可继续生成带引用、影响判断和建议行动的正式草稿。草稿通过确定性质量门禁后仍需审核员单独发布，当前本地数据没有正式发布事件，公开页继续保留版本化演示数据。
 
 ## 当前已实现
 
@@ -22,14 +22,18 @@
 - `/review` 内部采集与审核工作台
 - 单条内容 AI 分析和可恢复文档状态
 - 候选批准、驳回和重新打开；所有操作保留审核记录且不触发发布
-- G-01、P-01、P-02 Prompt 版本记录
+- 已批准候选生成正式事件草稿，保存影响角色、建议行动、引用、模型与 Token 元数据
+- 草稿质量门禁：引用、置信度、证据级别、高风险复核和模型复核状态
+- 独立人工发布与撤下操作，包含状态校验、审计记录和事件快照
+- 公开事件仓库只读取 `published` 状态；没有正式事件时回退到版本化演示数据
+- G-01、P-01、P-02、P-03、P-04 Prompt 版本记录
 - DeepSeek Responses API 严格结构化输出
 - Flash → Pro 确定性升级路由
 - 模型超时、有限重试、受控错误与 Token/耗时元数据
 - 统一 API 错误结构
 - mock 领域测试、构建后渲染测试和浏览器验收
 
-暂未实现：事件聚类入正式事件表、公开发布、实体时间线、订阅邮件和面向读者的账号体系。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
+暂未实现：跨文档候选聚类与多来源合并、事件人工编辑与修订版本、实体时间线、订阅邮件和面向读者的账号体系。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
 
 ## 本地运行
 
@@ -64,7 +68,7 @@ AI_API_KEY=只填写在本地
 
 真实 Key 只能存放在未提交的 `.env.local` 或托管平台 Secret 中，不得进入前端、日志、响应或 Git。超时、重试、升级阈值和输出预算见 `.env.example`，未填写时使用安全默认值。
 
-Stage 05 调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。
+Stage 05 起的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。Stage 06 的草稿生成由审核员对已批准候选单独触发，不纳入定时任务。
 
 本地审核后台默认 `REVIEW_AUTH_MODE=local`。托管环境必须改为 `chatgpt`，并通过 `REVIEW_ADMIN_EMAILS` 填写逗号分隔的审核员邮箱；未在白名单中的登录用户只能看到拒绝访问页面。
 
@@ -90,6 +94,9 @@ GET  /api/v1/admin/dashboard
 POST /api/v1/admin/ingestion/runs
 POST /api/v1/admin/documents/:id/analyze
 POST /api/v1/admin/candidates/:id/review
+POST /api/v1/admin/candidates/:id/draft
+GET  /api/v1/admin/events
+POST /api/v1/admin/events/:id/publication
 ```
 
 采集请求只接受代码中登记的 `sourceId`，不能提交任意 URL。采集和分析拆成两步，避免一次请求批量调用模型；失败文档会保留为可重试状态。
@@ -115,7 +122,7 @@ npm run build
 node --test tests/rendered-html.test.mjs
 ```
 
-Stage 03 同时验证离线状态机、真实 RSS、D1 迁移和真实模型“采集 → 持久化 → 候选 → 审核”链路。公开页仍显示演示数据，不能把内部候选当作已发布新闻。
+Stage 06 同时验证离线状态机、真实来源、D1 迁移和真实模型“候选批准 → P-03 影响分析 → P-04 中文稿 → 质量门禁”链路。公开页只读取正式发布事件，不能把候选或草稿当作已发布新闻。
 
 Stage 05 的真实来源回归可显式运行：
 
@@ -133,11 +140,13 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - Stage 03 文档：`docs/stages/stage-03-ingestion-review.md`
 - Stage 04 文档：`docs/stages/stage-04-scheduled-sources.md`
 - Stage 05 文档：`docs/stages/stage-05-coverage-expansion.md`
+- Stage 06 文档：`docs/stages/stage-06-event-publishing.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
 - `stage/02-model-routing`：真实模型适配与分级路由
 - `stage/03-ingestion-review`：受控来源采集、D1 候选队列与人工审核
 - `stage/04-scheduled-sources`：12 个官方来源、定时采集与有限自动分析
 - `stage/05-coverage-expansion`：20 个来源、国内厂商、政策与可信媒体补缺
+- `stage/06-event-publishing`：正式事件草稿、质量门禁、人工发布与撤下
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。

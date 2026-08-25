@@ -1,6 +1,6 @@
 import { eventFilterSchema } from "@/lib/domain/event";
 import { errorResponse } from "@/lib/http/error";
-import { listEvents } from "@/lib/repository/events";
+import { isDemoEvent, listEvents } from "@/lib/repository/events";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -13,6 +13,6 @@ export async function GET(request: Request) {
     return errorResponse(400, "INVALID_FILTER", "筛选条件不受支持。");
   }
 
-  const events = listEvents(parsed.data);
-  return Response.json({ data: events, meta: { count: events.length, demo: true } });
+  const events = await listEvents(parsed.data);
+  return Response.json({ data: events, meta: { count: events.length, demo: events.every(isDemoEvent) } });
 }

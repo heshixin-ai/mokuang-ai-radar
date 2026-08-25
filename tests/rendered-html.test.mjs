@@ -22,7 +22,7 @@ test("首页呈现模况产品信息而非 starter", async () => {
   const html = await response.text();
   assert.match(html, /模况 Mokuang｜AI 产品与模型变更雷达/);
   assert.match(html, /跟上 AI 的变化/);
-  assert.match(html, /演示数据/);
+  assert.match(html, /演示数据|人工发布/);
   assert.match(html, /值得你处理的变化/);
   assert.match(html, /property="og:image"[^>]*content="http:\/\/localhost(?::3000)?\/og\.png"|content="http:\/\/localhost(?::3000)?\/og\.png"[^>]*property="og:image"/i);
   assert.match(html, /name="twitter:card"[^>]*content="summary_large_image"|content="summary_large_image"[^>]*name="twitter:card"/i);
@@ -57,7 +57,7 @@ test("事件 API 返回受控 JSON，缺失事件返回统一错误", async () =
   assert.ok(missing.error.requestId);
 });
 
-test("审核后台需要授权身份，并明确候选不会自动发布", async () => {
+test("审核后台需要授权身份，并明确发布仍需人工确认", async () => {
   const anonymousResponse = await request("/review");
   assert.ok([302, 307, 308].includes(anonymousResponse.status));
   assert.match(anonymousResponse.headers.get("location") ?? "", /signin-with-chatgpt/);
@@ -70,8 +70,8 @@ test("审核后台需要授权身份，并明确候选不会自动发布", async
   });
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /把来源变成候选/);
-  assert.match(html, /把发布留给人/);
-  assert.match(html, /不会直接出现在公开信息流/);
-  assert.match(html, /采集与审核后台｜模况/);
+  assert.match(html, /先把事实变成草稿/);
+  assert.match(html, /再把发布交给人/);
+  assert.match(html, /只有通过质量门禁并由审核员再次确认/);
+  assert.match(html, /采集、审核与发布后台｜模况/);
 });

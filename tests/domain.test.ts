@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runMockPipeline } from "../lib/ai/mock-pipeline";
 import { eventSchema } from "../lib/domain/event";
 import { demoEvents } from "../lib/repository/demo-events";
-import { getEventById, listEvents } from "../lib/repository/events";
+import { getDemoEventById, listDemoEvents } from "../lib/repository/events";
 
 const baseSource = {
   id: "src-test",
@@ -20,15 +20,15 @@ describe("事件领域契约", () => {
   });
 
   it("按类型筛选并保持时间倒序", () => {
-    const apiEvents = listEvents({ type: "api_change" });
+    const apiEvents = listDemoEvents({ type: "api_change" });
     expect(apiEvents).toHaveLength(1);
     expect(apiEvents[0].id).toBe("evt-vector-api-sunset");
-    const allEvents = listEvents();
+    const allEvents = listDemoEvents();
     expect(Date.parse(allEvents[0].publishedAt)).toBeGreaterThan(Date.parse(allEvents.at(-1)!.publishedAt));
   });
 
   it("不存在的事件返回 null", () => {
-    expect(getEventById("evt-missing")).toBeNull();
+    expect(getDemoEventById("evt-missing")).toBeNull();
   });
 });
 
