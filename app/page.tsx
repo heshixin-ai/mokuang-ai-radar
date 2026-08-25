@@ -1,12 +1,34 @@
 import { EventFeed } from "@/components/event-feed";
 import { SiteHeader } from "@/components/site-header";
+import { eventTypeLabels } from "@/lib/domain/labels";
 import { isDemoEvent, listEvents } from "@/lib/repository/events";
 import Link from "next/link";
 
+const productValues = [
+  {
+    number: "01",
+    eyebrow: "CONTROLLED SOURCES",
+    title: "受控来源，不追热点榜",
+    text: "持续检查官方公告、API 文档、研究机构与可信媒体，只收录会影响判断和行动的变化。",
+  },
+  {
+    number: "02",
+    eyebrow: "EVENT FIRST",
+    title: "一个变化，而不是十篇文章",
+    text: "把描述同一件事的多条线索合并成事件，留下来源、冲突与证据等级，不制造重复噪音。",
+  },
+  {
+    number: "03",
+    eyebrow: "NEXT ACTION",
+    title: "告诉你现在该做什么",
+    text: "分别判断产品、开发、研究与创业者受到的影响，并给出可以立刻执行的下一步。",
+  },
+];
+
 const workflow = [
-  { number: "01", title: "发现变化", text: "从官方公告、API 文档、研究和可信报道中发现有时间意义的新变化。" },
-  { number: "02", title: "合并证据", text: "把描述同一变化的多个来源归到一个事件，保留冲突和不确定性。" },
-  { number: "03", title: "给出行动", text: "分别说明产品、开发和创业者是否受影响，以及最值得先检查什么。" },
+  { number: "01", title: "发现", text: "每 30 分钟检查来源，识别具有时间意义的新变化。" },
+  { number: "02", title: "判断", text: "完成去重、聚类与 AI 分析，同时保留不确定性。" },
+  { number: "03", title: "核验", text: "由人工检查事实、引用和行动建议，通过门禁再发布。" },
 ];
 
 export const dynamic = "force-dynamic";
@@ -14,32 +36,105 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const events = await listEvents();
   const demoMode = events.every(isDemoEvent);
+  const previewEvents = events.slice(0, 3);
 
   return (
-    <main>
+    <main className="home-v2">
+      <aside className="home-announcement" aria-label="产品状态">
+        <span>模况正在持续追踪 AI 产业变化</span>
+        <a href="#events">查看今日情报 <span aria-hidden="true">→</span></a>
+      </aside>
+
       <SiteHeader />
 
-      <section className="hero" id="top">
-        <div className="hero-kicker"><span /> AI 产品与模型变更雷达</div>
-        <h1>跟上 AI 的变化，<br />不用追完所有新闻。</h1>
-        <p>模况关注“变化”而不是“文章”。每天用 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
-        <div className="hero-meta" id="stage-note">
-          <span className="live-dot" />
-          <strong>{demoMode ? "首条正式事件发布前保留演示数据" : "公开事件来自人工发布"}</strong>
-          <span>第十阶段 · 正式事件、订阅日报与运行监控已接通</span>
+      <section className="home-hero" id="top" aria-labelledby="home-title">
+        <div className="home-eyebrow"><span /> AI PRODUCT &amp; MODEL RADAR</div>
+        <h1 id="home-title">只看 AI 真正<br /><mark>发生的变化。</mark></h1>
+        <p>模况把分散的公告、文档与报道整理成可验证的事件。每天 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
+        <div className="home-actions">
+          <a className="home-primary-action" href="#events">浏览今日变化 <span aria-hidden="true">→</span></a>
+          <Link className="home-secondary-action" href="/subscribe">订阅每日情报</Link>
+        </div>
+        <div className="home-status" id="stage-note">
+          <span className="home-live-dot" />
+          <strong>{demoMode ? "演示数据模式" : "正式事件持续更新"}</strong>
+          <span>20 个受控来源 · AI 分析 · 人工发布</span>
+        </div>
+      </section>
+
+      <section className="product-proof" aria-label="模况产品界面预览">
+        <div className="radar-preview">
+          <div className="preview-topbar">
+            <div><span className="preview-logo">模</span><strong>模况情报台</strong></div>
+            <span>LIVE RADAR</span>
+          </div>
+          <div className="preview-shell">
+            <aside className="preview-sidebar">
+              <p>工作台</p>
+              <a className="active" href="#events"><span>今日情报</span><b>{events.length}</b></a>
+              <Link href="/topics"><span>主题追踪</span><b>→</b></Link>
+              <Link href="/entities"><span>实体档案</span><b>→</b></Link>
+              <div className="preview-source-stat">
+                <small>当前覆盖</small>
+                <strong>20</strong>
+                <span>个受控来源</span>
+              </div>
+            </aside>
+            <div className="preview-main">
+              <header>
+                <div>
+                  <span>DAILY BRIEFING</span>
+                  <h2>今天值得处理的变化</h2>
+                </div>
+                <b>{demoMode ? "DEMO" : "UPDATED"}</b>
+              </header>
+              <div className="preview-events">
+                {previewEvents.length > 0 ? previewEvents.map((event, index) => (
+                  <Link className="preview-event" href={`/events/${event.id}`} key={event.id}>
+                    <span className="preview-event-index">{String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <small>{eventTypeLabels[event.eventType]}</small>
+                      <h3>{event.titleZh}</h3>
+                      <p>{event.deckZh}</p>
+                    </div>
+                    <span className="preview-arrow" aria-hidden="true">↗</span>
+                  </Link>
+                )) : (
+                  <div className="preview-empty">新的正式事件正在处理中。</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="home-values" aria-labelledby="value-title">
+        <div className="home-section-heading">
+          <span className="home-kicker">WHY MOKUANG</span>
+          <h2 id="value-title">从新闻噪音里，<br />只留下决策信号。</h2>
+        </div>
+        <div className="value-grid">
+          {productValues.map((value) => (
+            <article className="value-card" key={value.number}>
+              <div><span>{value.number}</span><small>{value.eyebrow}</small></div>
+              <h3>{value.title}</h3>
+              <p>{value.text}</p>
+            </article>
+          ))}
         </div>
       </section>
 
       <EventFeed events={events} demoMode={demoMode} />
 
-      <section className="workflow-section" id="workflow" aria-labelledby="workflow-title">
-        <div className="workflow-heading">
-          <span className="section-label">FROM NOISE TO SIGNAL</span>
-          <h2 id="workflow-title">不是摘要机器，<br />是变化判断系统。</h2>
+      <section className="home-workflow" id="workflow" aria-labelledby="workflow-title">
+        <div className="workflow-intro">
+          <span className="home-kicker">HOW IT WORKS</span>
+          <h2 id="workflow-title">机器提高速度，<br /><mark>人负责可信。</mark></h2>
+          <p>自动更新不等于自动发布。每条正式事件都要经过来源核验、结构化分析和人工门禁。</p>
         </div>
-        <div className="workflow-list">
+        <div className="home-workflow-list">
           {workflow.map((step) => (
-            <article className="workflow-card" key={step.number}>
+            <article key={step.number}>
               <span>{step.number}</span>
               <h3>{step.title}</h3>
               <p>{step.text}</p>
@@ -48,23 +143,21 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="about-section" id="about">
+      <section className="home-final-cta" id="about">
+        <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
+        <h2>不用追完所有新闻。<br />重要变化，模况替你盯着。</h2>
         <div>
-          <span className="section-label">STAGE 10</span>
-          <h2>从真实来源到正式事件，发布仍由人把关。</h2>
-        </div>
-        <div className="about-copy">
-          <p>当前版本每 30 分钟检查 20 个受控来源，完成采集、去重、聚类、AI 分析与候选审核。正式草稿可人工修订并保留版本记录，通过质量门禁后才可发布；主题与实体时间线只展示正式事件。</p>
-          <Link href="/api/v1/events">查看事件 API <span aria-hidden="true">↗</span></Link>
+          <Link className="home-primary-action" href="/subscribe">订阅每日情报 <span aria-hidden="true">→</span></Link>
+          <Link href="/about">了解我们如何筛选</Link>
         </div>
       </section>
 
-      <footer className="site-footer">
+      <footer className="site-footer home-footer">
         <div className="brand footer-brand">
           <span className="brand-mark">模</span>
           <span><strong>模况</strong><small>MOKUANG</small></span>
         </div>
-        <p>AI 产品与模型变更雷达 · Stage 10 Launch Readiness</p>
+        <p>AI 产品与模型变更雷达</p>
         <div className="footer-links"><Link href="/about">关于</Link><Link href="/corrections">纠错</Link><Link href="/privacy">隐私</Link><Link href="/terms">条款</Link><a href="#top">顶部 ↑</a></div>
       </footer>
     </main>

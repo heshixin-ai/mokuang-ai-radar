@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const forwardedProtocol = requestHeaders.get("x-forwarded-proto");
   const protocol = forwardedProtocol ?? (host.startsWith("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
-  const socialImage = `${origin}/og.png`;
+  const socialImage = `${origin}/og-home-v2.png`;
 
   return {
     metadataBase: new URL(origin),
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "zh_CN",
-      images: [{ url: socialImage, width: 1730, height: 909, alt: "模况 AI 产品与模型变更雷达" }],
+      images: [{ url: socialImage, width: 1731, height: 909, alt: "模况 AI 产品与模型变更雷达" }],
     },
     twitter: {
       card: "summary_large_image",
