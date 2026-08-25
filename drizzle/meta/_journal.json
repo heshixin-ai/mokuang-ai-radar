@@ -43,6 +43,13 @@
       "when": 1787657270769,
       "tag": "0005_little_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787657447104,
+      "tag": "0006_wild_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }
