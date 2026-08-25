@@ -369,6 +369,24 @@ export const emailOutbox = sqliteTable(
   ],
 );
 
+export const feedbackRequests = sqliteTable(
+  "feedback_requests",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind", { enum: ["correction", "privacy"] }).notNull(),
+    email: text("email").notNull(),
+    eventId: text("event_id"),
+    message: text("message").notNull(),
+    status: text("status", { enum: ["open", "resolved"] }).notNull().default("open"),
+    createdAt: text("created_at").notNull(),
+    resolvedAt: text("resolved_at"),
+  },
+  (table) => [
+    index("idx_feedback_requests_status_created").on(table.status, table.createdAt),
+    index("idx_feedback_requests_event").on(table.eventId),
+  ],
+);
+
 export const candidateClusters = sqliteTable(
   "candidate_clusters",
   {

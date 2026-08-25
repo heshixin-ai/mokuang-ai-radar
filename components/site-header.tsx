@@ -15,7 +15,7 @@ export function SiteHeader() {
         <Link href="/topics">主题</Link>
         <Link href="/entities">实体</Link>
         <Link href="/#workflow">处理流程</Link>
-        <Link href="/#about">关于</Link>
+        <Link href="/about">关于</Link>
       </nav>
       <Link className="subscribe-button" href="/subscribe">订阅日报</Link>
     </header>

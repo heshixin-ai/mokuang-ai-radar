@@ -26,7 +26,7 @@ export default async function Home() {
         <div className="hero-meta" id="stage-note">
           <span className="live-dot" />
           <strong>{demoMode ? "首条正式事件发布前保留演示数据" : "公开事件来自人工发布"}</strong>
-          <span>第八阶段 · 正式事件支持人工修订、主题与实体时间线</span>
+          <span>第十阶段 · 正式事件、订阅日报与运行监控已接通</span>
         </div>
       </section>
 
@@ -50,7 +50,7 @@ export default async function Home() {
 
       <section className="about-section" id="about">
         <div>
-          <span className="section-label">STAGE 08</span>
+          <span className="section-label">STAGE 10</span>
           <h2>从真实来源到正式事件，发布仍由人把关。</h2>
         </div>
         <div className="about-copy">
@@ -64,8 +64,8 @@ export default async function Home() {
           <span className="brand-mark">模</span>
           <span><strong>模况</strong><small>MOKUANG</small></span>
         </div>
-        <p>AI 产品与模型变更雷达 · Stage 08 Reading &amp; Revisions</p>
-        <a href="#top">回到顶部 ↑</a>
+        <p>AI 产品与模型变更雷达 · Stage 10 Launch Readiness</p>
+        <div className="footer-links"><Link href="/about">关于</Link><Link href="/corrections">纠错</Link><Link href="/privacy">隐私</Link><Link href="/terms">条款</Link><a href="#top">顶部 ↑</a></div>
       </footer>
     </main>
   );

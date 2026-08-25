@@ -2,7 +2,7 @@
 
 面向中文 AI 产品经理、开发者和小型创业团队的产品与模型变更雷达。模况把分散来源整理成带证据、影响判断和建议行动的变化事件。
 
-当前完成 Stage 09 订阅日报：读者可按主题双重确认订阅；系统每日汇总当天已发布事件，提供本地 outbox 和生产 Resend 双适配，并记录发送、失败与退订状态。
+当前完成 Stage 10 上线准备：真实发布信息流、主题/实体时间线、双重确认日报、运行监控、合成质量回归、健康检查与合规页面已经接通。连续 7 天来源成功率仍必须在实际部署后按监控窗口完成。
 
 ## 当前已实现
 
@@ -29,6 +29,9 @@
 - 正式事件人工编辑、版本快照与修订审计
 - 主题与实体索引及正式事件时间线
 - 双重确认订阅、主题偏好、一键退订和幂等每日邮件
+- 120 条确定性发布契约回归（合成用例，非人工金标）
+- 7 天来源观测、连续失败和邮件队列监控
+- 健康检查、隐私、条款、纠错请求与运行手册
 - 公开事件仓库只读取 `published` 状态；没有正式事件时回退到版本化演示数据
 - G-01、P-01、P-02、P-03、P-04 Prompt 版本记录
 - DeepSeek Responses API 严格结构化输出
@@ -108,6 +111,9 @@ POST /api/v1/admin/events/:id/publication
 POST /api/v1/subscriptions
 GET  /api/v1/subscriptions/verify
 GET  /api/v1/subscriptions/unsubscribe
+POST /api/v1/feedback
+GET  /api/v1/health
+GET  /api/v1/admin/operations
 ```
 
 采集请求只接受代码中登记的 `sourceId`，不能提交任意 URL。采集和分析拆成两步，避免一次请求批量调用模型；失败文档会保留为可重试状态。
@@ -155,6 +161,8 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - Stage 07 文档：`docs/stages/stage-07-event-clustering.md`
 - Stage 08 文档：`docs/stages/stage-08-reading-and-revisions.md`
 - Stage 09 文档：`docs/stages/stage-09-daily-digest.md`
+- Stage 10 文档：`docs/stages/stage-10-launch-readiness.md`
+- 上线运行手册：`docs/operations-runbook.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
 - `stage/02-model-routing`：真实模型适配与分级路由
@@ -165,5 +173,6 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - `stage/07-event-clustering`：跨来源聚类建议、人工合并与重复发布防护
 - `stage/08-reading-and-revisions`：事件人工修订、版本审计与主题/实体时间线
 - `stage/09-daily-digest`：双重确认订阅、主题偏好、退订与幂等日报
+- `stage/10-launch-readiness`：质量回归、运行监控、合规页面与部署准备
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。
