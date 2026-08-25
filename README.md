@@ -2,7 +2,7 @@
 
 面向中文 AI 产品经理、开发者和小型创业团队的产品与模型变更雷达。模况把分散来源整理成带证据、影响判断和建议行动的变化事件。
 
-当前完成 Stage 06 正式事件与发布门禁：内部后台每 30 分钟检查 20 个受控来源，把有限数量的新文档交给 AI 生成待审核候选；批准候选可继续生成带引用、影响判断和建议行动的正式草稿。草稿通过确定性质量门禁后仍需审核员单独发布，当前本地数据没有正式发布事件，公开页继续保留版本化演示数据。
+当前完成 Stage 07 跨来源事件聚类：内部后台在已批准候选生成正式草稿前，先用确定性规则检查同类事件；相似结果必须由审核员确认合并或保留独立事件。合并只补充来源和引用，并重新触发质量复核，不会自动发布。
 
 ## 当前已实现
 
@@ -25,6 +25,7 @@
 - 已批准候选生成正式事件草稿，保存影响角色、建议行动、引用、模型与 Token 元数据
 - 草稿质量门禁：引用、置信度、证据级别、高风险复核和模型复核状态
 - 独立人工发布与撤下操作，包含状态校验、审计记录和事件快照
+- 跨来源候选聚类、版本冲突隔离、人工合并与独立事件判断
 - 公开事件仓库只读取 `published` 状态；没有正式事件时回退到版本化演示数据
 - G-01、P-01、P-02、P-03、P-04 Prompt 版本记录
 - DeepSeek Responses API 严格结构化输出
@@ -33,7 +34,7 @@
 - 统一 API 错误结构
 - mock 领域测试、构建后渲染测试和浏览器验收
 
-暂未实现：跨文档候选聚类与多来源合并、事件人工编辑与修订版本、实体时间线、订阅邮件和面向读者的账号体系。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
+暂未实现：事件人工编辑与修订版本、实体时间线、订阅邮件和面向读者的账号体系。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
 
 ## 本地运行
 
@@ -95,6 +96,9 @@ POST /api/v1/admin/ingestion/runs
 POST /api/v1/admin/documents/:id/analyze
 POST /api/v1/admin/candidates/:id/review
 POST /api/v1/admin/candidates/:id/draft
+POST /api/v1/admin/candidates/:id/cluster
+GET  /api/v1/admin/clusters
+POST /api/v1/admin/clusters/:id/review
 GET  /api/v1/admin/events
 POST /api/v1/admin/events/:id/publication
 ```
@@ -141,6 +145,7 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - Stage 04 文档：`docs/stages/stage-04-scheduled-sources.md`
 - Stage 05 文档：`docs/stages/stage-05-coverage-expansion.md`
 - Stage 06 文档：`docs/stages/stage-06-event-publishing.md`
+- Stage 07 文档：`docs/stages/stage-07-event-clustering.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
 - `stage/02-model-routing`：真实模型适配与分级路由
@@ -148,5 +153,6 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - `stage/04-scheduled-sources`：12 个官方来源、定时采集与有限自动分析
 - `stage/05-coverage-expansion`：20 个来源、国内厂商、政策与可信媒体补缺
 - `stage/06-event-publishing`：正式事件草稿、质量门禁、人工发布与撤下
+- `stage/07-event-clustering`：跨来源聚类建议、人工合并与重复发布防护
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。

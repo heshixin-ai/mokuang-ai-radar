@@ -231,3 +231,42 @@ export const publicationActions = sqliteTable(
   },
   (table) => [index("idx_publication_actions_event_created").on(table.eventId, table.createdAt)],
 );
+
+export const candidateClusters = sqliteTable(
+  "candidate_clusters",
+  {
+    id: text("id").primaryKey(),
+    candidateId: text("candidate_id").notNull().references(() => eventCandidates.id),
+    action: text("action", { enum: ["create_new", "merge_suggested", "manual_review"] }).notNull(),
+    targetEventId: text("target_event_id").references(() => events.id),
+    similarity: real("similarity").notNull(),
+    reasonsJson: text("reasons_json").notNull(),
+    status: text("status", { enum: ["proposed", "confirmed", "dismissed"] }).notNull(),
+    decidedBy: text("decided_by", { enum: ["rules", "reviewer"] }).notNull(),
+    reviewedAt: text("reviewed_at"),
+    reviewedBy: text("reviewed_by"),
+    reviewNote: text("review_note"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_candidate_clusters_candidate").on(table.candidateId),
+    index("idx_candidate_clusters_status_created").on(table.status, table.createdAt),
+    index("idx_candidate_clusters_target").on(table.targetEventId),
+  ],
+);
+
+export const eventCandidateLinks = sqliteTable(
+  "event_candidate_links",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull().references(() => events.id),
+    candidateId: text("candidate_id").notNull().references(() => eventCandidates.id),
+    linkKind: text("link_kind", { enum: ["primary", "supporting"] }).notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_event_candidate_links_candidate").on(table.candidateId),
+    index("idx_event_candidate_links_event").on(table.eventId),
+  ],
+);

@@ -129,6 +129,10 @@ export class D1EventWorkflowRepository {
         INSERT INTO event_sources (id, event_id, document_id, is_primary, created_at)
         VALUES (?, ?, ?, 1, ?)
       `).bind(sourceLinkId, eventId, input.material.document.id, input.now),
+      this.database.prepare(`
+        INSERT INTO event_candidate_links (id, event_id, candidate_id, link_kind, created_at)
+        VALUES (?, ?, ?, 'primary', ?)
+      `).bind(`ecl_${crypto.randomUUID()}`, eventId, input.material.candidate.id, input.now),
       ...input.result.draft.claims.flatMap((claim) => claim.source_ids.map((sourceId) =>
         this.database.prepare(`
           INSERT INTO event_citations (id, event_id, document_id, claim, supports_json, created_at)
