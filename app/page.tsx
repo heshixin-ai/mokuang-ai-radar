@@ -49,7 +49,7 @@ export default async function Home() {
 
       <section className="home-hero" id="top" aria-labelledby="home-title">
         <div className="home-eyebrow"><span /> AI PRODUCT &amp; MODEL RADAR</div>
-        <h1 id="home-title">只看 AI 真正<br /><mark>发生的变化。</mark></h1>
+        <h1 id="home-title"><span>只看 AI 真正</span><span>发生的变化</span></h1>
         <p>模况把分散的公告、文档与报道整理成可验证的事件。每天 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
         <div className="home-actions">
           <a className="home-primary-action" href="#events">浏览今日变化 <span aria-hidden="true">→</span></a>
@@ -129,7 +129,7 @@ export default async function Home() {
       <section className="home-workflow" id="workflow" aria-labelledby="workflow-title">
         <div className="workflow-intro">
           <span className="home-kicker">HOW IT WORKS</span>
-          <h2 id="workflow-title">机器提高速度，<br /><mark>人负责可信。</mark></h2>
+          <h2 id="workflow-title">机器提高速度，<br /><span>人负责可信。</span></h2>
           <p>自动更新不等于自动发布。每条正式事件都要经过来源核验、结构化分析和人工门禁。</p>
         </div>
         <div className="home-workflow-list">
