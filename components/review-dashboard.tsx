@@ -207,7 +207,7 @@ export function ReviewDashboard() {
               ))}
             </div>
             <div className="run-history" aria-label="最近采集运行">
-              <div><h3>最近运行</h3><p>定时任务每 30 分钟检查到期来源；每次均保留独立运行记录。</p></div>
+              <div><h3>最近运行</h3><p>定时任务每 5 分钟检查到期来源；每次均保留独立运行记录。</p></div>
               <ol>
                 {dashboard.recentRuns.slice(0, 8).map((run) => (
                   <li key={run.id}>

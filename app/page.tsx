@@ -26,7 +26,7 @@ const productValues = [
 ];
 
 const workflow = [
-  { number: "01", title: "发现", text: "每 30 分钟检查来源，识别具有时间意义的新变化。" },
+  { number: "01", title: "发现", text: "每 5 分钟检查来源，识别具有时间意义的新变化。" },
   { number: "02", title: "判断", text: "完成去重、聚类与 AI 分析，同时保留不确定性。" },
   { number: "03", title: "核验", text: "官方高置信变化通过双重门禁后发布，高风险内容交由人工复核。" },
 ];
@@ -37,6 +37,12 @@ export default async function Home() {
   const events = await listEvents();
   const demoMode = events.every(isDemoEvent);
   const previewEvents = events.slice(0, 3);
+  const latestPublishedAt = events[0]?.publishedAt;
+  const previewStatus = demoMode
+    ? "演示数据"
+    : latestPublishedAt
+      ? `更新于 ${new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(latestPublishedAt))}`
+      : "等待更新";
 
   return (
     <main className="home-v2">
@@ -45,7 +51,7 @@ export default async function Home() {
         <a href="#events">查看今日情报 <span aria-hidden="true">→</span></a>
       </aside>
 
-      <SiteHeader />
+      <SiteHeader active="intel" />
 
       <section className="home-hero" id="top" aria-labelledby="home-title">
         <div className="home-eyebrow"><span /> AI PRODUCT &amp; MODEL RADAR</div>
@@ -86,7 +92,7 @@ export default async function Home() {
                   <span>DAILY BRIEFING</span>
                   <h2>今天值得处理的变化</h2>
                 </div>
-                <b>{demoMode ? "DEMO" : "UPDATED"}</b>
+                <span className="preview-update-status" data-demo={demoMode || undefined} role="status">{previewStatus}</span>
               </header>
               <div className="preview-events">
                 {previewEvents.length > 0 ? previewEvents.map((event, index) => (

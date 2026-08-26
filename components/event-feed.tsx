@@ -94,28 +94,30 @@ export function EventFeed({ events, demoMode = false }: { events: IntelligenceEv
         <div className="event-list">
           {visibleEvents.map((event, index) => (
             <article className="event-card" key={event.id}>
-              <div className="event-index">{String(index + 1).padStart(2, "0")}</div>
-              <div className="event-body">
-                <div className="event-meta">
-                  <span className="event-type">{eventTypeLabels[event.eventType]}</span>
-                  <time dateTime={event.publishedAt}>{dateFormatter.format(new Date(event.publishedAt))}</time>
-                  <EvidenceBadge level={event.evidenceLevel} />
-                  {event.needsReview && <span className="status-review">{eventStatusLabels[event.status]}</span>}
-                </div>
-                <h3><Link href={`/events/${event.id}`}>{event.titleZh}</Link></h3>
-                <p>{event.deckZh}</p>
-                <div className="event-footer">
-                  <div className="role-list">
-                    <span>影响</span>
-                    {event.affectedRoles.filter((impact) => impact.level !== "none").map((impact) => (
-                      <b key={impact.role}>{roleLabels[impact.role]}</b>
-                    ))}
+              <Link className="event-card-link" href={`/events/${event.id}`} aria-label={`查看 ${event.titleZh} 的完整详情与证据`}>
+                <div className="event-index">{String(index + 1).padStart(2, "0")}</div>
+                <div className="event-body">
+                  <div className="event-meta">
+                    <span className="event-type">{eventTypeLabels[event.eventType]}</span>
+                    <time dateTime={event.publishedAt}>{dateFormatter.format(new Date(event.publishedAt))}</time>
+                    <EvidenceBadge level={event.evidenceLevel} />
+                    {event.needsReview && <span className="status-review">{eventStatusLabels[event.status]}</span>}
                   </div>
-                  <Link className="detail-link" href={`/events/${event.id}`} aria-label={`查看 ${event.titleZh} 的证据`}>
-                    查看依据 <span aria-hidden="true">↗</span>
-                  </Link>
+                  <h3>{event.titleZh}</h3>
+                  <p>{event.deckZh}</p>
+                  <div className="event-footer">
+                    <div className="role-list">
+                      <span>影响</span>
+                      {event.affectedRoles.filter((impact) => impact.level !== "none").map((impact) => (
+                        <b key={impact.role}>{roleLabels[impact.role]}</b>
+                      ))}
+                    </div>
+                    <span className="detail-link">
+                      查看完整详情 <span aria-hidden="true">↗</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </Link>
             </article>
           ))}
         </div>
