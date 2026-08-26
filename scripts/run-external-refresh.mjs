@@ -24,7 +24,15 @@ const summary = {
 console.log(JSON.stringify(summary));
 
 if (summary.autoPublishFailed > 0) {
-  throw new Error("MOKUANG_AUTO_PUBLISH_PARTIAL_FAILURE");
+  console.warn(JSON.stringify({
+    warning: "MOKUANG_AUTO_PUBLISH_CANDIDATES_DEFERRED_FOR_RETRY",
+    failed: summary.autoPublishFailed,
+    attempted: summary.autoPublishAttempted,
+  }));
+}
+
+if (summary.autoPublishAttempted > 0 && summary.autoPublishFailed === summary.autoPublishAttempted) {
+  throw new Error("MOKUANG_AUTO_PUBLISH_COMPLETE_FAILURE");
 }
 
 async function callInternalEndpoint(pathname, failureCode) {
