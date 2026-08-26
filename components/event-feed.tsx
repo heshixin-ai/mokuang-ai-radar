@@ -10,6 +10,7 @@ import {
   filterEventsByType,
   type EventTimeRange,
 } from "@/lib/events/feed-filter";
+import { getEventSourcePublishedAt } from "@/lib/events/publication-time";
 import { EvidenceBadge } from "./evidence-badge";
 
 const filters: Array<{ value: "all" | EventType; label: string }> = [
@@ -137,14 +138,20 @@ export function EventFeed({
 
       {visibleEvents.length > 0 ? (
         <div className="event-list">
-          {visibleEvents.map((event, index) => (
+          {visibleEvents.map((event, index) => {
+            const sourcePublishedAt = getEventSourcePublishedAt(event);
+            return (
             <article className="event-card" key={event.id}>
               <Link className="event-card-link" href={`/events/${event.id}`} aria-label={`查看 ${event.titleZh} 的完整详情与证据`}>
                 <div className="event-index">{String(index + 1).padStart(2, "0")}</div>
                 <div className="event-body">
                   <div className="event-meta">
                     <span className="event-type">{eventTypeLabels[event.eventType]}</span>
-                    <time dateTime={event.publishedAt}>{dateFormatter.format(new Date(event.publishedAt))}</time>
+                    {sourcePublishedAt && (
+                      <time dateTime={sourcePublishedAt}>
+                        {dateFormatter.format(new Date(sourcePublishedAt))}
+                      </time>
+                    )}
                     <EvidenceBadge level={event.evidenceLevel} />
                     {event.needsReview && <span className="status-review">{eventStatusLabels[event.status]}</span>}
                   </div>
@@ -164,14 +171,17 @@ export function EventFeed({
                 </div>
               </Link>
             </article>
-          ))}
+            );
+          })}
           {remainingCount > 0 && (
             <div className="feed-load-more">
-              <button type="button" onClick={() => setVisibleCount((count) => count + EVENT_PAGE_SIZE)}>
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + EVENT_PAGE_SIZE)}
+                aria-label="加载更多事件"
+              >
                 加载更多
-                <small>再显示 {Math.min(EVENT_PAGE_SIZE, remainingCount)} 条</small>
               </button>
-              <span>还有 {remainingCount} 条事件</span>
             </div>
           )}
         </div>

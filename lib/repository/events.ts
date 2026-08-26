@@ -1,4 +1,5 @@
 import type { EventFilter, IntelligenceEvent } from "../domain/event";
+import { sortEventsBySourcePublishedAt } from "../events/publication-time";
 import { demoEvents } from "./demo-events";
 
 export async function listEvents(filter: EventFilter = {}): Promise<IntelligenceEvent[]> {
@@ -6,7 +7,7 @@ export async function listEvents(filter: EventFilter = {}): Promise<Intelligence
   try {
     const repository = await defaultRepository();
     const published = await repository.listPublished(filter);
-    if (published.length > 0) return published;
+    if (published.length > 0) return sortEventsBySourcePublishedAt(published);
   } catch (error) {
     if (process.env.NODE_ENV !== "test") {
       console.warn("mokuang_public_events_fallback", { name: error instanceof Error ? error.name : "UnknownError" });
@@ -16,10 +17,9 @@ export async function listEvents(filter: EventFilter = {}): Promise<Intelligence
 }
 
 export function listDemoEvents(filter: EventFilter = {}): IntelligenceEvent[] {
-  return demoEvents
+  return sortEventsBySourcePublishedAt(demoEvents
     .filter((event) => !filter.type || event.eventType === filter.type)
-    .filter((event) => !filter.status || event.status === filter.status)
-    .toSorted((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+    .filter((event) => !filter.status || event.status === filter.status));
 }
 
 export async function getEventById(id: string): Promise<IntelligenceEvent | null> {

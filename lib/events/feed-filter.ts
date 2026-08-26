@@ -1,4 +1,5 @@
 import type { EventType, IntelligenceEvent } from "@/lib/domain/event";
+import { getEventSourcePublishedAt } from "@/lib/events/publication-time";
 
 export const EVENT_PAGE_SIZE = 9;
 
@@ -26,15 +27,19 @@ export function filterEventsByTime(
   if (range === "today") {
     const today = shanghaiDateFormatter.format(now);
     return events.filter((event) => {
-      const publishedAt = new Date(event.publishedAt);
-      return Number.isFinite(publishedAt.getTime()) && shanghaiDateFormatter.format(publishedAt) === today;
+      const sourcePublishedAt = getEventSourcePublishedAt(event);
+      if (!sourcePublishedAt) return false;
+      const publishedAt = new Date(sourcePublishedAt);
+      return shanghaiDateFormatter.format(publishedAt) === today;
     });
   }
 
   const days = range === "7d" ? 7 : 30;
   const earliest = nowMs - days * DAY_MS;
   return events.filter((event) => {
-    const publishedAt = Date.parse(event.publishedAt);
+    const sourcePublishedAt = getEventSourcePublishedAt(event);
+    if (!sourcePublishedAt) return false;
+    const publishedAt = Date.parse(sourcePublishedAt);
     return Number.isFinite(publishedAt) && publishedAt >= earliest && publishedAt <= nowMs;
   });
 }

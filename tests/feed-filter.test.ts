@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { IntelligenceEvent } from "@/lib/domain/event";
 import { filterEventsByTime, filterEventsByType } from "@/lib/events/feed-filter";
+import { getEventSourcePublishedAt, sortEventsBySourcePublishedAt } from "@/lib/events/publication-time";
 
 const referenceTime = "2026-08-27T04:00:00.000Z";
 
@@ -31,6 +32,31 @@ describe("public event feed filters", () => {
     expect(filterEventsByType(events, "api_change").map((item) => item.id)).toEqual(["api"]);
     expect(filterEventsByType(events, "all")).toHaveLength(2);
   });
+
+  it("uses the original source time instead of the site's publication time", () => {
+    const item = event("source-date", "2026-08-26T16:30:00.000Z");
+    item.publishedAt = "2026-08-27T03:59:00.000Z";
+
+    expect(getEventSourcePublishedAt(item)).toBe("2026-08-26T16:30:00.000Z");
+    expect(filterEventsByTime([item], "today", referenceTime)).toEqual([item]);
+  });
+
+  it("does not substitute the site's publication time when source time is unavailable", () => {
+    const item = event("missing-source-date", referenceTime);
+    item.sources = [];
+
+    expect(getEventSourcePublishedAt(item)).toBeNull();
+    expect(filterEventsByTime([item], "7d", referenceTime)).toEqual([]);
+    expect(filterEventsByTime([item], "all", referenceTime)).toEqual([item]);
+  });
+
+  it("sorts the feed by original source time", () => {
+    const earlierSource = event("earlier", "2026-08-25T04:00:00.000Z");
+    const laterSource = event("later", "2026-08-26T04:00:00.000Z");
+    earlierSource.publishedAt = "2026-08-27T04:00:00.000Z";
+
+    expect(sortEventsBySourcePublishedAt([earlierSource, laterSource]).map((item) => item.id)).toEqual(["later", "earlier"]);
+  });
 });
 
 function event(
@@ -38,5 +64,10 @@ function event(
   publishedAt: string,
   eventType: IntelligenceEvent["eventType"] = "model_release",
 ): IntelligenceEvent {
-  return { id, publishedAt, eventType } as IntelligenceEvent;
+  return {
+    id,
+    publishedAt: "2026-08-27T00:00:00.000Z",
+    eventType,
+    sources: [{ publishedAt }],
+  } as IntelligenceEvent;
 }
