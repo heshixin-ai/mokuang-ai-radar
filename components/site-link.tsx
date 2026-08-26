@@ -1,8 +1,9 @@
-import NextLink from "next/link";
-import type { ComponentProps } from "react";
+import type { AnchorHTMLAttributes } from "react";
 
-type SiteLinkProps = ComponentProps<typeof NextLink>;
+type SiteLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+  href: string;
+};
 
-export default function SiteLink(props: SiteLinkProps) {
-  return <NextLink {...props} prefetch={props.prefetch ?? false} />;
+export default function SiteLink({ href, children, ...props }: SiteLinkProps) {
+  return <a href={href} {...props}>{children}</a>;
 }
