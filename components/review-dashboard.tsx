@@ -343,7 +343,7 @@ export function ReviewDashboard() {
             <section className="review-panel" aria-labelledby="events-title">
               <div className="review-panel-heading">
                 <div><span>05</span><h2 id="events-title">正式事件与发布门禁</h2></div>
-                <p>草稿必须通过结构、引用与置信度检查；发布和撤下都需要人工操作。</p>
+                <p>草稿必须通过结构、引用与置信度检查；安全策略外的发布和所有撤下仍需人工操作。</p>
               </div>
               <div className="publication-stats" aria-label="发布概览">
                 <Metric label="草稿" value={eventDashboard.counts.draft} tone="amber" />
