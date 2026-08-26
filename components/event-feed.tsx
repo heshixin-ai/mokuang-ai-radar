@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "@/components/site-link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { EventType, IntelligenceEvent } from "@/lib/domain/event";
 import { eventStatusLabels, eventTypeLabels, roleLabels } from "@/lib/domain/labels";
 import {
@@ -29,6 +29,81 @@ const timeRanges: Array<{ value: EventTimeRange; label: string }> = [
   { value: "all", label: "全部历史" },
 ];
 
+type FilterOption<T extends string> = {
+  value: T;
+  label: string;
+  count?: number;
+  disabled?: boolean;
+};
+
+function FilterMenu<T extends string>({
+  id,
+  label,
+  value,
+  options,
+  isOpen,
+  disabled,
+  onToggle,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: T;
+  options: Array<FilterOption<T>>;
+  isOpen: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  onChange: (value: T) => void;
+}) {
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  return (
+    <div className={`feed-filter-menu${isOpen ? " is-open" : ""}`}>
+      <button
+        className="feed-filter-trigger"
+        type="button"
+        id={`${id}-trigger`}
+        aria-label={`按${label}筛选，当前为${selected.label}`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={`${id}-options`}
+        disabled={disabled}
+        onClick={onToggle}
+      >
+        <span className="feed-filter-label">{label}：</span>
+        <strong>{selected.label}</strong>
+        <span className="feed-filter-chevron" aria-hidden="true">⌄</span>
+      </button>
+      {isOpen && (
+        <div
+          className="feed-filter-options"
+          id={`${id}-options`}
+          role="listbox"
+          aria-labelledby={`${id}-trigger`}
+        >
+          {options.map((option) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className="feed-filter-option"
+              disabled={option.disabled}
+              key={option.value}
+              onClick={() => onChange(option.value)}
+            >
+              <span className="feed-filter-check" aria-hidden="true">
+                {option.value === value ? "✓" : ""}
+              </span>
+              <span>{option.label}</span>
+              {option.count !== undefined && <b>{option.count}</b>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   timeZone: "Asia/Shanghai",
   month: "short",
@@ -46,6 +121,8 @@ export function EventFeed({
   const [activeTimeRange, setActiveTimeRange] = useState<EventTimeRange>("7d");
   const [visibleCount, setVisibleCount] = useState(EVENT_PAGE_SIZE);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [openMenu, setOpenMenu] = useState<"type" | "time" | null>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let hashTimeout = 0;
     const scrollToEvents = () => {
@@ -67,6 +144,21 @@ export function EventFeed({
       window.clearTimeout(hashTimeout);
     };
   }, []);
+  useEffect(() => {
+    if (!openMenu) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!controlsRef.current?.contains(event.target as Node)) setOpenMenu(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenMenu(null);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openMenu]);
   const eventsInRange = useMemo(
     () => filterEventsByTime(events, activeTimeRange, referenceTime),
     [activeTimeRange, events, referenceTime],
@@ -88,11 +180,13 @@ export function EventFeed({
   function changeTimeRange(range: EventTimeRange) {
     setActiveTimeRange(range);
     setVisibleCount(EVENT_PAGE_SIZE);
+    setOpenMenu(null);
   }
 
   function changeTypeFilter(type: "all" | EventType) {
     setActiveFilter(type);
     setVisibleCount(EVENT_PAGE_SIZE);
+    setOpenMenu(null);
   }
 
   return (
@@ -102,37 +196,31 @@ export function EventFeed({
           <span className="section-label">AI CHANGE FEED</span>
           <h2 id="feed-title">值得你处理的变化</h2>
         </div>
-        <div className="feed-controls">
-          <label className="feed-filter-control">
-            <span>类型</span>
-            <select
-              value={activeFilter}
-              onChange={(event) => changeTypeFilter(event.target.value as "all" | EventType)}
-              disabled={!isHydrated}
-              aria-label="按事件类型筛选"
-            >
-              {filters.map((filter) => {
-                const count = filterCounts[filter.value];
-                const unavailable = filter.value !== "all" && count === 0;
-                return (
-                  <option value={filter.value} key={filter.value} disabled={unavailable}>
-                    {filter.label} {count}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <label className="feed-filter-control">
-            <span>时间</span>
-            <select
-              value={activeTimeRange}
-              onChange={(event) => changeTimeRange(event.target.value as EventTimeRange)}
-              disabled={!isHydrated}
-              aria-label="按发布时间筛选事件"
-            >
-              {timeRanges.map((range) => <option value={range.value} key={range.value}>{range.label}</option>)}
-            </select>
-          </label>
+        <div className="feed-controls" ref={controlsRef}>
+          <FilterMenu
+            id="event-type-filter"
+            label="类型"
+            value={activeFilter}
+            options={filters.map((filter) => ({
+              ...filter,
+              count: filter.value === "all" ? undefined : filterCounts[filter.value],
+              disabled: filter.value !== "all" && filterCounts[filter.value] === 0,
+            }))}
+            isOpen={openMenu === "type"}
+            disabled={!isHydrated}
+            onToggle={() => setOpenMenu((current) => current === "type" ? null : "type")}
+            onChange={changeTypeFilter}
+          />
+          <FilterMenu
+            id="event-time-filter"
+            label="时间"
+            value={activeTimeRange}
+            options={timeRanges}
+            isOpen={openMenu === "time"}
+            disabled={!isHydrated}
+            onToggle={() => setOpenMenu((current) => current === "time" ? null : "time")}
+            onChange={changeTimeRange}
+          />
         </div>
       </div>
 
