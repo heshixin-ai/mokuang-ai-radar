@@ -16,6 +16,8 @@ Sites 生产环境的单次审核请求有明确执行期限。当前使用 `AI_
 
 外部调度器统一调用 `POST /api/v1/admin/refresh`，不得循环调用单来源接口。生产使用私有 GitHub Actions 每 5 分钟触发一次；单次批量由 `EXTERNAL_REFRESH_*` 环境变量限制。私有 Sites 请求需要同时携带 Sites 访问绕过 Token 和审核自动化 Token，两者必须作为仓库 Actions Secret 保存。轮换任一 Token 后，应先手动运行工作流，再观察一个真实定时点；日志和文档不得记录 Token 明文。
 
+GitHub `schedule` 不是精确计时器，可能延迟或丢弃。每日检查时应同时查看 Actions 最近一次 `schedule` 成功时间和 D1 最近一次 `trigger_kind=scheduled` 时间；超过 30 分钟没有成功运行时，先手动触发工作流恢复数据更新，再检查默认分支、工作流 active 状态和 GitHub Actions 服务状态。
+
 ## 每日检查
 
 - `/review/operations` 是否出现连续 3 次来源失败、邮件失败或观测不足。
