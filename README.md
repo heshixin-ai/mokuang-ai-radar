@@ -21,10 +21,11 @@
 - D1 持久化：来源健康、采集运行、短摘录文档、事件候选和审核审计
 - `/review` 内部采集与审核工作台
 - 单条内容 AI 分析和可恢复文档状态
-- 候选批准、驳回和重新打开；所有操作保留审核记录且不触发发布
+- 候选批准、驳回和重新打开；所有操作保留审核记录
 - 已批准候选生成正式事件草稿，保存影响角色、建议行动、引用、模型与 Token 元数据
 - 草稿质量门禁：引用、置信度、证据级别、高风险复核和模型复核状态
 - 独立人工发布与撤下操作，包含状态校验、审计记录和事件快照
+- 保守自动发布：仅官方高置信、无风险候选在聚类无歧义且草稿二次门禁通过后发布
 - 跨来源候选聚类、版本冲突隔离、人工合并与独立事件判断
 - 正式事件人工编辑、版本快照与修订审计
 - 主题与实体索引及正式事件时间线
@@ -75,7 +76,7 @@ AI_API_KEY=只填写在本地
 
 真实 Key 只能存放在未提交的 `.env.local` 或托管平台 Secret 中，不得进入前端、日志、响应或 Git。超时、重试、升级阈值和输出预算见 `.env.example`，未填写时使用安全默认值。
 
-Stage 05 起的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。Stage 06 的草稿生成由审核员对已批准候选单独触发，不纳入定时任务。
+Stage 05 起的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。Stage 17 的自动发布默认关闭；生产设为 `AUTO_PUBLISH_MODE=safe` 后，外部调度器每轮刷新后再调用一次保守自动发布，高风险内容继续由人工处理。
 
 本地审核后台默认 `REVIEW_AUTH_MODE=local`。托管环境必须改为 `chatgpt`，并通过 `REVIEW_ADMIN_EMAILS` 填写逗号分隔的审核员邮箱；未在白名单中的登录用户只能看到拒绝访问页面。
 
@@ -100,6 +101,7 @@ Content-Type: application/json
 GET  /api/v1/admin/dashboard
 POST /api/v1/admin/ingestion/runs
 POST /api/v1/admin/refresh
+POST /api/v1/admin/auto-publish
 POST /api/v1/admin/documents/:id/analyze
 POST /api/v1/admin/candidates/:id/review
 POST /api/v1/admin/candidates/:id/draft
@@ -165,6 +167,7 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - Stage 10 文档：`docs/stages/stage-10-launch-readiness.md`
 - Stage 15 文档：`docs/stages/stage-15-production-data-validation.md`
 - Stage 16 文档：`docs/stages/stage-16-external-scheduler.md`
+- Stage 17 文档：`docs/stages/stage-17-safe-auto-publishing.md`
 - 上线运行手册：`docs/operations-runbook.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
@@ -179,5 +182,6 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - `stage/10-launch-readiness`：质量回归、运行监控、合规页面与部署准备
 - `stage/15-production-data-validation`：生产模型、真实来源、审核发布闭环与线上浏览器验收
 - `stage/16-external-scheduler`：受保护的小批量刷新入口与外部 Timer 调度
+- `stage/17-safe-auto-publishing`：官方高置信候选的保守自动发布与双重门禁
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。

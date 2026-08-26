@@ -28,7 +28,7 @@ const productValues = [
 const workflow = [
   { number: "01", title: "发现", text: "每 30 分钟检查来源，识别具有时间意义的新变化。" },
   { number: "02", title: "判断", text: "完成去重、聚类与 AI 分析，同时保留不确定性。" },
-  { number: "03", title: "核验", text: "由人工检查事实、引用和行动建议，通过门禁再发布。" },
+  { number: "03", title: "核验", text: "官方高置信变化通过双重门禁后发布，高风险内容交由人工复核。" },
 ];
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,7 @@ export default async function Home() {
         <div className="home-status" id="stage-note">
           <span className="home-live-dot" />
           <strong>{demoMode ? "演示数据模式" : "正式事件持续更新"}</strong>
-          <span>20 个受控来源 · AI 分析 · 人工发布</span>
+          <span>20 个受控来源 · AI 分析 · 安全门禁</span>
         </div>
       </section>
 
@@ -129,8 +129,8 @@ export default async function Home() {
       <section className="home-workflow" id="workflow" aria-labelledby="workflow-title">
         <div className="workflow-intro">
           <span className="home-kicker">HOW IT WORKS</span>
-          <h2 id="workflow-title">机器提高速度，<br /><span>人负责可信。</span></h2>
-          <p>自动更新不等于自动发布。每条正式事件都要经过来源核验、结构化分析和人工门禁。</p>
+          <h2 id="workflow-title">机器提高速度，<br /><span>规则守住边界。</span></h2>
+          <p>每条正式事件都要经过来源核验、结构化分析和质量门禁；价格、政策、冲突与低置信内容必须人工复核。</p>
         </div>
         <div className="home-workflow-list">
           {workflow.map((step) => (

@@ -21,10 +21,11 @@ test("首页呈现模况产品信息而非 starter", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /模况 Mokuang｜AI 产品与模型变更雷达/);
-  assert.match(html, /跟上 AI 的变化/);
-  assert.match(html, /演示数据|人工发布/);
+  assert.match(html, /只看 AI 真正/);
+  assert.match(html, /发生的变化/);
+  assert.match(html, /演示数据|安全门禁/);
   assert.match(html, /值得你处理的变化/);
-  assert.match(html, /property="og:image"[^>]*content="http:\/\/localhost(?::3000)?\/og\.png"|content="http:\/\/localhost(?::3000)?\/og\.png"[^>]*property="og:image"/i);
+  assert.match(html, /property="og:image"[^>]*content="http:\/\/localhost(?::3000)?\/og-home-v2\.png"|content="http:\/\/localhost(?::3000)?\/og-home-v2\.png"[^>]*property="og:image"/i);
   assert.match(html, /name="twitter:card"[^>]*content="summary_large_image"|content="summary_large_image"[^>]*name="twitter:card"/i);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton/i);
 });
@@ -57,7 +58,7 @@ test("事件 API 返回受控 JSON，缺失事件返回统一错误", async () =
   assert.ok(missing.error.requestId);
 });
 
-test("审核后台需要授权身份，并明确发布仍需人工确认", async () => {
+test("审核后台需要授权身份，并明确安全自动发布边界", async () => {
   const anonymousResponse = await request("/review");
   assert.ok([302, 307, 308].includes(anonymousResponse.status));
   assert.match(anonymousResponse.headers.get("location") ?? "", /signin-with-chatgpt/);
@@ -70,8 +71,8 @@ test("审核后台需要授权身份，并明确发布仍需人工确认", async
   });
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /先把事实变成草稿/);
-  assert.match(html, /再把发布交给人/);
-  assert.match(html, /只有通过质量门禁并由审核员再次确认/);
+  assert.match(html, /低风险交给规则/);
+  assert.match(html, /高风险交给人/);
+  assert.match(html, /价格、政策、融资、冲突和低置信内容仍必须人工复核/);
   assert.match(html, /采集、审核与发布后台｜模况/);
 });
