@@ -37,12 +37,6 @@ export default async function Home() {
   const events = await listEvents();
   const demoMode = events.every(isDemoEvent);
   const previewEvents = events.slice(0, 3);
-  const latestPublishedAt = events[0]?.publishedAt;
-  const previewStatus = demoMode
-    ? "演示数据"
-    : latestPublishedAt
-      ? `更新于 ${new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(latestPublishedAt))}`
-      : "等待更新";
 
   return (
     <main className="home-v2">
@@ -92,7 +86,6 @@ export default async function Home() {
                   <span>DAILY BRIEFING</span>
                   <h2>今天值得处理的变化</h2>
                 </div>
-                <span className="preview-update-status" data-demo={demoMode || undefined} role="status">{previewStatus}</span>
               </header>
               <div className="preview-events">
                 {previewEvents.length > 0 ? previewEvents.map((event, index) => (
