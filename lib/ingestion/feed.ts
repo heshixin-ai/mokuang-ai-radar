@@ -168,6 +168,7 @@ export async function parseControlledHtmlSource(
   loadPage?: (url: string) => Promise<string>,
 ): Promise<NormalizedFeedItem[]> {
   if (source.id === "src-deepseek-api-changelog") return parseDeepSeekChangelog(html, source);
+  if (source.id === "src-alibaba-model-studio-releases") return parseAlibabaModelReleases(html, source);
   if (source.id === "src-kimi-platform-blog") return parseKimiBlog(html, source, loadPage);
   throw new FeedIngestionError("HTML_SOURCE_UNSUPPORTED", "HTML source does not have a controlled parser");
 }
@@ -199,6 +200,48 @@ async function parseDeepSeekChangelog(html: string, source: SourceDefinition): P
     }
   }
   return addContentHashes(rawItems.slice(0, MAX_HTML_ITEMS));
+}
+
+async function parseAlibabaModelReleases(
+  html: string,
+  source: SourceDefinition,
+): Promise<NormalizedFeedItem[]> {
+  const byExternalId = new Map<string, Omit<NormalizedFeedItem, "contentHash">>();
+  for (const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map((cell) => cleanText(cell[1]));
+    const dateIndex = cells.findIndex((cell) => /^\d{4}-\d{2}-\d{2}$/.test(cell));
+    if (dateIndex < 1 || cells.length - dateIndex < 3) continue;
+
+    const publishedDate = cells[dateIndex];
+    const modelId = cells.at(-2)?.slice(0, 300) ?? "";
+    const description = cells.at(-1)?.slice(0, 3_500) ?? "";
+    const modelType = cells[0]?.slice(0, 100) ?? "模型";
+    if (!modelId || description.length < 20) continue;
+
+    const externalId = `${publishedDate}#${modelId}`;
+    if (byExternalId.has(externalId)) continue;
+    const fragment = `${publishedDate}-${modelId}`
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 180);
+    const canonicalUrl = canonicalizeItemUrl(`${source.feedUrl}#${fragment}`, source, true);
+    const title = `${modelId} 上线（${modelType}）`.slice(0, 500);
+    byExternalId.set(externalId, {
+      externalId,
+      canonicalUrl,
+      title,
+      author: source.name,
+      publishedAt: new Date(`${publishedDate}T00:00:00+08:00`).toISOString(),
+      contentExcerpt: cleanText(`${title}。${description}`).slice(0, 4_000),
+    });
+  }
+
+  const items = [...byExternalId.values()]
+    .sort((left, right) => right.publishedAt.localeCompare(left.publishedAt))
+    .slice(0, MAX_HTML_ITEMS);
+  return addContentHashes(items);
 }
 
 async function parseKimiBlog(

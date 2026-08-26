@@ -1,20 +1,21 @@
 import { z } from "zod";
 
 const schedulerEnvironmentSchema = z.object({
-  INGESTION_SOURCE_BATCH_SIZE: z.coerce.number().int().min(1).max(20).default(20),
+  INGESTION_SOURCE_BATCH_SIZE: z.coerce.number().int().min(1).max(30).default(30),
   INGESTION_SOURCE_CONCURRENCY: z.coerce.number().int().min(1).max(5).default(3),
   INGESTION_MAX_ITEMS_PER_SOURCE: z.coerce.number().int().min(1).max(50).default(10),
-  INGESTION_ANALYSIS_BATCH_SIZE: z.coerce.number().int().min(0).max(10).default(3),
+  INGESTION_ANALYSIS_BATCH_SIZE: z.coerce.number().int().min(0).max(20).default(10),
   INGESTION_ANALYSIS_CONCURRENCY: z.coerce.number().int().min(1).max(3).default(1),
+  INGESTION_ANALYSIS_MAX_AGE_DAYS: z.coerce.number().int().min(1).max(30).default(14),
   INGESTION_ANALYSIS_MODE: z.enum(["auto", "off"]).default("auto"),
 });
 
 export type IngestionSchedulerConfig = z.infer<typeof schedulerEnvironmentSchema>;
 
 const externalRefreshEnvironmentSchema = z.object({
-  EXTERNAL_REFRESH_SOURCE_BATCH_SIZE: z.coerce.number().int().min(1).max(5).default(4),
-  EXTERNAL_REFRESH_SOURCE_CONCURRENCY: z.coerce.number().int().min(1).max(3).default(2),
-  EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: z.coerce.number().int().min(0).max(6).default(1),
+  EXTERNAL_REFRESH_SOURCE_BATCH_SIZE: z.coerce.number().int().min(1).max(30).default(30),
+  EXTERNAL_REFRESH_SOURCE_CONCURRENCY: z.coerce.number().int().min(1).max(5).default(5),
+  EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: z.coerce.number().int().min(0).max(20).default(10),
   EXTERNAL_REFRESH_ANALYSIS_CONCURRENCY: z.coerce.number().int().min(1).max(3).default(1),
 });
 

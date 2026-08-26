@@ -21,6 +21,7 @@ export type ScheduledRefreshSummary = {
   discoveredCount: number;
   insertedCount: number;
   duplicateCount: number;
+  expiredCount: number;
   analysisEnabled: boolean;
   analysesAttempted: number;
   candidatesCreated: number;
@@ -77,6 +78,11 @@ export async function runScheduledRefresh(options: {
   let candidatesCreated = 0;
   let irrelevantCount = 0;
   let analysesFailed = 0;
+  const analysisCutoff = new Date(
+    new Date(scheduledAt).getTime()
+      - options.schedulerConfig.INGESTION_ANALYSIS_MAX_AGE_DAYS * 24 * 60 * 60 * 1_000,
+  ).toISOString();
+  const expiredCount = await options.repository.expireStaleDocuments(analysisCutoff, scheduledAt);
 
   if (analysisEnabled && options.schedulerConfig.INGESTION_ANALYSIS_BATCH_SIZE > 0) {
     const documentIds = await options.repository.listPendingDocumentIds(
@@ -115,6 +121,7 @@ export async function runScheduledRefresh(options: {
     discoveredCount: succeeded.reduce((sum, item) => sum + item.result.discoveredCount, 0),
     insertedCount: succeeded.reduce((sum, item) => sum + item.result.insertedCount, 0),
     duplicateCount: succeeded.reduce((sum, item) => sum + item.result.duplicateCount, 0),
+    expiredCount,
     analysisEnabled,
     analysesAttempted,
     candidatesCreated,

@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       sourcesSucceeded: refresh.sourcesSucceeded,
       sourcesFailed: refresh.sourcesFailed,
       insertedCount: refresh.insertedCount,
+      expiredCount: refresh.expiredCount,
       analysesAttempted: refresh.analysesAttempted,
       candidatesCreated: refresh.candidatesCreated,
       analysesFailed: refresh.analysesFailed,

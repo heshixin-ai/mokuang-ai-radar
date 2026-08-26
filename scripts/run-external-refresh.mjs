@@ -11,6 +11,7 @@ const summary = {
   sourcesSucceeded: refreshPayload?.data?.refresh?.sourcesSucceeded ?? 0,
   sourcesFailed: refreshPayload?.data?.refresh?.sourcesFailed ?? 0,
   insertedCount: refreshPayload?.data?.refresh?.insertedCount ?? 0,
+  expiredCount: refreshPayload?.data?.refresh?.expiredCount ?? 0,
   analysesAttempted: refreshPayload?.data?.refresh?.analysesAttempted ?? 0,
   candidatesCreated: refreshPayload?.data?.refresh?.candidatesCreated ?? 0,
   autoPublishAttempted: autoPublishPayload?.data?.autoPublish?.attempted ?? 0,
@@ -34,7 +35,7 @@ async function callInternalEndpoint(pathname, failureCode) {
       "oai-sites-authorization": `Bearer ${sitesBypassToken}`,
       "user-agent": "mokuang-external-scheduler/1.0",
     },
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(240_000),
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {

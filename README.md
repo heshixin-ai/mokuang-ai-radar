@@ -12,8 +12,8 @@
 - `GET /api/v1/events`
 - `GET /api/v1/events/:id`
 - `POST /api/v1/pipeline/preview`
-- 20 个经真实解析验证的 RSS、Atom、Release 与专用公开页面来源
-- DeepSeek API 与 Kimi 开放平台固定白名单 HTML 解析；不接受通用网页抓取
+- 21 个经真实解析验证的 RSS、Atom、Release 与专用公开页面来源
+- DeepSeek API、阿里云百炼模型更新与 Kimi 开放平台固定白名单 HTML 解析；不接受通用网页抓取
 - NIST 政策/研究来源与 TechCrunch、VentureBeat 可信媒体补充来源
 - Cloudflare Cron 每 30 分钟检查到期来源，带来源数、并发、每源条数和 AI 批次上限
 - 原子防重入、scheduled/manual 运行记录和失败隔离
@@ -41,7 +41,7 @@
 - 统一 API 错误结构
 - mock 领域测试、构建后渲染测试和浏览器验收
 
-面向读者的账号体系不属于当前 MVP；订阅无需账号。20 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
+面向读者的账号体系不属于当前 MVP；订阅无需账号。21 个来源已完成单次真实解析；PRD 要求的连续 7 天成功率仍需部署后观测，不能由一次测试替代。
 
 ## 本地运行
 
@@ -76,7 +76,7 @@ AI_API_KEY=只填写在本地
 
 真实 Key 只能存放在未提交的 `.env.local` 或托管平台 Secret 中，不得进入前端、日志、响应或 Git。超时、重试、升级阈值和输出预算见 `.env.example`，未填写时使用安全默认值。
 
-Stage 05 起的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。Stage 17 的自动发布默认关闭；生产已设为 `AUTO_PUBLISH_MODE=safe`，外部调度器每轮刷新后再调用一次保守自动发布，高风险内容继续由人工处理。2026-08-26 已通过真实 GitHub `schedule` 事件验证从刷新到正式发布的完整链路。
+Stage 25 的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 21 个来源，只分析最近 14 天的内容，并优先处理 DeepSeek、阿里云百炼和 Kimi 来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。自动发布本地默认关闭；生产设为 `AUTO_PUBLISH_MODE=safe`，每轮最多处理 5 条通过确定性门禁的候选，未通过门禁的内容自动拦截。2026-08-26 已通过真实 GitHub `schedule` 事件验证从刷新到正式发布的完整链路。
 
 本地审核后台默认 `REVIEW_AUTH_MODE=local`。托管环境必须改为 `chatgpt`，并通过 `REVIEW_ADMIN_EMAILS` 填写逗号分隔的审核员邮箱；未在白名单中的登录用户只能看到拒绝访问页面。
 
