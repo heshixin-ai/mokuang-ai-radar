@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/site-link";
 import { SiteHeader } from "@/components/site-header";
 
 export default function ReviewForbiddenPage() {

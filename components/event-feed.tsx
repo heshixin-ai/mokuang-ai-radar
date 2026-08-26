@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/site-link";
 import { useEffect, useMemo, useState } from "react";
 import type { EventType, IntelligenceEvent } from "@/lib/domain/event";
 import { eventStatusLabels, eventTypeLabels, roleLabels } from "@/lib/domain/labels";

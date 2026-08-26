@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/site-link";
 import { notFound } from "next/navigation";
 import { EvidenceBadge } from "@/components/evidence-badge";
 import { SiteHeader } from "@/components/site-header";

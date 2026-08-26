@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/site-link";
 import { SiteHeader } from "@/components/site-header";
 import { requireReviewPageActor } from "@/lib/auth/review";
 import { getOperationsDashboard } from "@/lib/repository/operations";

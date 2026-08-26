@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ReviewDashboard } from "@/components/review-dashboard";
 import { SiteHeader } from "@/components/site-header";
 import { requireReviewPageActor } from "@/lib/auth/review";
-import Link from "next/link";
+import Link from "@/components/site-link";
 
 export const dynamic = "force-dynamic";
 

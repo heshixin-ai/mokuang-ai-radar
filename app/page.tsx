@@ -2,7 +2,7 @@ import { EventFeed } from "@/components/event-feed";
 import { SiteHeader } from "@/components/site-header";
 import { eventTypeLabels } from "@/lib/domain/labels";
 import { isDemoEvent, listEvents } from "@/lib/repository/events";
-import Link from "next/link";
+import Link from "@/components/site-link";
 
 const productValues = [
   {

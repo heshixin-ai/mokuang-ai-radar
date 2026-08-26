@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/site-link";
 import type { TimelineSummary } from "@/lib/repository/taxonomy";
 
 export function TimelineIndex({ title, eyebrow, description, basePath, items }: { title: string; eyebrow: string; description: string; basePath: string; items: TimelineSummary[] }) {
