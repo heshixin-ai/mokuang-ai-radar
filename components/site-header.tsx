@@ -16,7 +16,9 @@ export function SiteHeader({ active }: { active?: SiteNavKey } = {}) {
         <Link className={active === "intel" ? "active" : undefined} href="/#events">情报</Link>
         <Link className={active === "topics" ? "active" : undefined} href="/topics">主题</Link>
       </nav>
-      <Link className="subscribe-button" href="/subscribe">订阅日报</Link>
+      <form className="site-logout" action="/api/v1/invite/logout" method="post">
+        <button className="subscribe-button" type="submit">退出访问</button>
+      </form>
     </header>
   );
 }

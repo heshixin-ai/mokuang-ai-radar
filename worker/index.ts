@@ -2,6 +2,12 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { readAiConfig } from "@/lib/ai/config";
+import {
+  readInviteAccessConfig,
+  readInviteCookie,
+  verifyInviteSession,
+  type InviteSession,
+} from "@/lib/auth/invite-access";
 import { readIngestionSchedulerConfig } from "@/lib/ingestion/scheduler-config";
 import { runScheduledRefresh } from "@/lib/ingestion/scheduler";
 import { createD1IngestionRepository } from "@/lib/repository/ingestion";
@@ -37,6 +43,8 @@ interface Env {
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   PUBLIC_SITE_URL?: string;
+  INVITE_ACCESS_MODE?: string;
+  INVITE_SESSION_SECRET?: string;
 }
 
 interface ExecutionContext {
@@ -60,6 +68,10 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    const access = await authorizeInviteRequest(request, env);
+    if (access.response) return secureResponse(access.response, access.enabled);
+    request = access.request;
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {
@@ -71,13 +83,18 @@ const worker = {
       }, allowedWidths);
     }
 
+    const cacheKey = access.session && isCacheableReaderRequest(request)
+      ? new Request(request.url, { method: "GET" })
+      : null;
+    if (cacheKey) {
+      const cached = await caches.default.match(cacheKey);
+      if (cached) return secureResponse(cached, access.enabled);
+    }
+
     const response = await handler.fetch(request, env, ctx);
-    const headers = new Headers(response.headers);
-    headers.set("x-content-type-options", "nosniff");
-    headers.set("x-frame-options", "DENY");
-    headers.set("referrer-policy", "strict-origin-when-cross-origin");
-    headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    const secured = secureResponse(response, access.enabled, Boolean(cacheKey));
+    if (cacheKey && secured.ok) ctx.waitUntil(caches.default.put(cacheKey, secured.clone()));
+    return secured;
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
@@ -110,6 +127,83 @@ const worker = {
   },
 };
 
+async function authorizeInviteRequest(
+  request: Request,
+  env: Env,
+): Promise<{ request: Request; response: Response | null; session: InviteSession | null; enabled: boolean }> {
+  const headers = new Headers(request.headers);
+  headers.delete("x-mokuang-invite-id");
+  headers.delete("x-mokuang-invite-role");
+  const sanitizedRequest = new Request(request, { headers });
+  const config = readInviteAccessConfig(env);
+  if (!config.enabled) return { request: sanitizedRequest, response: null, session: null, enabled: false };
+
+  const url = new URL(request.url);
+  if (isPublicInvitePath(url.pathname) || isPublicAssetPath(url.pathname)) {
+    return { request: sanitizedRequest, response: null, session: null, enabled: true };
+  }
+  if (url.pathname.startsWith("/api/v1/admin/") && headers.get("authorization")?.startsWith("Bearer ")) {
+    return { request: sanitizedRequest, response: null, session: null, enabled: true };
+  }
+  if (!config.secret) {
+    return {
+      request: sanitizedRequest,
+      response: new Response("邀请码访问尚未配置。", { status: 503, headers: { "cache-control": "no-store" } }),
+      session: null,
+      enabled: true,
+    };
+  }
+
+  const session = await verifyInviteSession(readInviteCookie(headers.get("cookie")), config.secret);
+  if (!session) {
+    const response = url.pathname.startsWith("/api/")
+      ? Response.json({ error: { code: "INVITE_ACCESS_REQUIRED", message: "请先使用邀请码进入模况。" } }, { status: 401, headers: { "cache-control": "no-store" } })
+      : Response.redirect(new URL(`/invite?returnTo=${encodeURIComponent(`${url.pathname}${url.search}`)}`, url.origin), 302);
+    return { request: sanitizedRequest, response, session: null, enabled: true };
+  }
+
+  headers.set("x-mokuang-invite-id", session.inviteId);
+  headers.set("x-mokuang-invite-role", session.role);
+  return { request: new Request(request, { headers }), response: null, session, enabled: true };
+}
+
+function isPublicInvitePath(pathname: string): boolean {
+  return pathname === "/invite"
+    || pathname.startsWith("/api/v1/invite/")
+    || pathname === "/api/v1/health"
+    || pathname === "/robots.txt"
+    || pathname === "/sitemap.xml";
+}
+
+function isPublicAssetPath(pathname: string): boolean {
+  return pathname.startsWith("/_next/")
+    || pathname === "/_vinext/image"
+    || pathname === "/favicon.svg"
+    || pathname === "/og.png"
+    || pathname === "/og-home-v2.png";
+}
+
+function isCacheableReaderRequest(request: Request): boolean {
+  if (request.method !== "GET" || request.headers.has("rsc") || request.headers.has("next-router-state-tree")) return false;
+  const pathname = new URL(request.url).pathname;
+  return pathname === "/"
+    || pathname === "/topics"
+    || pathname.startsWith("/topics/")
+    || pathname.startsWith("/events/")
+    || pathname === "/api/v1/events";
+}
+
+function secureResponse(response: Response, inviteEnabled: boolean, cacheable = false): Response {
+    const headers = new Headers(response.headers);
+    headers.set("x-content-type-options", "nosniff");
+    headers.set("x-frame-options", "DENY");
+    headers.set("referrer-policy", "strict-origin-when-cross-origin");
+    headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+    if (inviteEnabled) headers.set("x-robots-tag", "noindex, nofollow");
+    if (cacheable && response.ok) headers.set("cache-control", "public, s-maxage=60, max-age=0");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 const runtimeEnvironmentKeys = [
   "AI_PROVIDER",
   "AI_BASE_URL",
@@ -130,6 +224,8 @@ const runtimeEnvironmentKeys = [
   "RESEND_API_KEY",
   "EMAIL_FROM",
   "PUBLIC_SITE_URL",
+  "INVITE_ACCESS_MODE",
+  "INVITE_SESSION_SECRET",
 ] as const;
 
 function readRuntimeEnvironment(env: Env): Record<string, string | undefined> {

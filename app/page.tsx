@@ -49,7 +49,7 @@ export default async function Home() {
         <p>模况把分散的公告、文档与报道整理成可验证的事件。每天 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
         <div className="home-actions">
           <a className="home-primary-action" href="#events">浏览今日变化 <span aria-hidden="true">→</span></a>
-          <Link className="home-secondary-action" href="/subscribe">订阅每日情报</Link>
+          <Link className="home-secondary-action" href="/topics">查看主题追踪</Link>
         </div>
         <div className="home-status" id="stage-note">
           <span className="home-live-dot" />
@@ -123,7 +123,7 @@ export default async function Home() {
       <section className="home-subscribe-cta" aria-labelledby="subscribe-title">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
         <h2 id="subscribe-title"><span>不用追完所有新闻。</span><span>重要变化，模况替你盯着。</span></h2>
-        <Link className="home-primary-action" href="/subscribe">订阅每日情报 <span aria-hidden="true">→</span></Link>
+        <a className="home-primary-action" href="#events">继续浏览情报 <span aria-hidden="true">→</span></a>
       </section>
 
       <footer className="site-footer home-footer">

@@ -26,6 +26,20 @@ export function getReviewActorFromHeaders(
     };
   }
 
+  const inviteRole = requestHeaders.get("x-mokuang-invite-role");
+  const inviteId = requestHeaders.get("x-mokuang-invite-id");
+  if (inviteRole === "admin" && inviteId) {
+    return {
+      ok: true,
+      actor: {
+        id: `invite:${inviteId}`,
+        email: "invite-admin@mokuang.internal",
+        displayName: "模况管理员",
+      },
+    };
+  }
+  if (inviteRole === "reader") return { ok: false, reason: "forbidden" };
+
   const id = requestHeaders.get("oai-authenticated-user-id");
   const email = requestHeaders.get("oai-authenticated-user-email")?.trim().toLowerCase();
   if (!id || !email) return { ok: false, reason: "unauthenticated" };

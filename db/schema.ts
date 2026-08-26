@@ -329,6 +329,36 @@ export const subscriptionPreferences = sqliteTable(
   ],
 );
 
+export const inviteCodes = sqliteTable(
+  "invite_codes",
+  {
+    id: text("id").primaryKey(),
+    codeHash: text("code_hash").notNull(),
+    label: text("label").notNull(),
+    role: text("role", { enum: ["reader", "admin"] }).notNull().default("reader"),
+    status: text("status", { enum: ["active", "revoked"] }).notNull().default("active"),
+    maxUses: integer("max_uses").notNull().default(3),
+    useCount: integer("use_count").notNull().default(0),
+    expiresAt: text("expires_at"),
+    lastUsedAt: text("last_used_at"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_invite_codes_hash").on(table.codeHash),
+    index("idx_invite_codes_status_expires").on(table.status, table.expiresAt),
+  ],
+);
+
+export const inviteRedemptions = sqliteTable(
+  "invite_redemptions",
+  {
+    id: text("id").primaryKey(),
+    inviteCodeId: text("invite_code_id").notNull().references(() => inviteCodes.id),
+    redeemedAt: text("redeemed_at").notNull(),
+  },
+  (table) => [index("idx_invite_redemptions_code_time").on(table.inviteCodeId, table.redeemedAt)],
+);
+
 export const digestRuns = sqliteTable(
   "digest_runs",
   {
