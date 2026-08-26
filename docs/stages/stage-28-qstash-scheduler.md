@@ -19,6 +19,12 @@
 2. 创建 QStash Schedule，并观察至少一次真实成功运行。
 3. 只有 QStash 成功后，才移除 GitHub workflow 的 `schedule` 触发；保留 `workflow_dispatch` 作为人工故障兜底。
 
+## 切换结果
+
+- 美国区 QStash Schedule 已创建，任务 ID 为 `mokuang-production-automation`。
+- 正式频率为每 10 分钟一次，首次真实定时运行状态为 `SUCCESS`。
+- GitHub Actions 的自动 `schedule` 已移除，只保留 `workflow_dispatch` 人工兜底。
+
 ## 所需外部凭据
 
 - `QSTASH_TOKEN`：只用于创建和管理 QStash Schedule，不写入站点运行环境。
