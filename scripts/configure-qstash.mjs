@@ -2,10 +2,11 @@ const qstashToken = requiredSecret("QSTASH_TOKEN");
 const reviewToken = requiredSecret("REVIEW_AUTOMATION_TOKEN");
 const sitesBypassToken = requiredSecret("SITES_BYPASS_TOKEN");
 const siteUrl = requiredUrl("MOKUANG_SITE_URL");
+const qstashUrl = optionalUrl("QSTASH_URL", "https://qstash.upstash.io");
 const destination = new URL("/api/v1/admin/run", siteUrl).toString();
 const scheduleId = process.env.QSTASH_SCHEDULE_ID?.trim() || "mokuang-production-automation";
-const cron = process.env.QSTASH_CRON?.trim() || "*/5 * * * *";
-const scheduleUrl = `https://qstash.upstash.io/v2/schedules/${encodeURIComponent(destination)}`;
+const cron = process.env.QSTASH_CRON?.trim() || "*/10 * * * *";
+const scheduleUrl = `${qstashUrl}/v2/schedules/${destination}`;
 
 const response = await fetch(scheduleUrl, {
   method: "POST",
@@ -17,7 +18,7 @@ const response = await fetch(scheduleUrl, {
     "upstash-retries": "3",
     "upstash-timeout": "8m",
     "upstash-schedule-id": scheduleId,
-    "upstash-redact-fields": "headers",
+    "upstash-redact-fields": "header[Authorization], header[OAI-Sites-Authorization]",
     "upstash-forward-authorization": `Bearer ${reviewToken}`,
     "upstash-forward-oai-sites-authorization": `Bearer ${sitesBypassToken}`,
     "upstash-forward-user-agent": "mokuang-qstash-scheduler/1.0",
@@ -36,6 +37,7 @@ console.log(JSON.stringify({
   scheduleId: payload?.scheduleId ?? scheduleId,
   cron,
   destination,
+  qstashUrl,
 }));
 
 function requiredSecret(name) {
@@ -50,4 +52,11 @@ function requiredUrl(name) {
   const url = new URL(value);
   if (url.protocol !== "https:") throw new Error(`${name}_MUST_USE_HTTPS`);
   return url;
+}
+
+function optionalUrl(name, fallback) {
+  const rawValue = process.env[name]?.trim() || fallback;
+  const url = new URL(rawValue);
+  if (url.protocol !== "https:") throw new Error(`${name}_MUST_USE_HTTPS`);
+  return url.origin;
 }
