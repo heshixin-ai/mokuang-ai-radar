@@ -1,6 +1,7 @@
 import { EventFeed } from "@/components/event-feed";
 import { SiteHeader } from "@/components/site-header";
 import { eventTypeLabels } from "@/lib/domain/labels";
+import { curatedSources } from "@/lib/ingestion/sources";
 import { isDemoEvent, listEvents } from "@/lib/repository/events";
 import Link from "@/components/site-link";
 
@@ -52,7 +53,7 @@ export default async function Home() {
         <div className="home-status" id="stage-note">
           <span className="home-live-dot" />
           <strong>{demoMode ? "演示数据模式" : "正式事件持续更新"}</strong>
-          <span>20 个受控来源 · AI 分析 · 安全门禁</span>
+          <span>{curatedSources.length} 个受控来源 · AI 分析 · 安全门禁</span>
         </div>
       </section>
 
@@ -69,7 +70,7 @@ export default async function Home() {
               <Link href="/topics"><span>主题追踪</span><b>→</b></Link>
               <div className="preview-source-stat">
                 <small>当前覆盖</small>
-                <strong>20</strong>
+                <strong>{curatedSources.length}</strong>
                 <span>个受控来源</span>
               </div>
             </aside>

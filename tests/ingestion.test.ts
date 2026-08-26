@@ -76,7 +76,7 @@ describe("feed ingestion", () => {
     expect(items[0].canonicalUrl).toBe("https://huggingface.co/blog/model-release");
   });
 
-  it("parses controlled DeepSeek and Kimi HTML sources without accepting arbitrary pages", async () => {
+  it("parses controlled DeepSeek, Alibaba and Kimi HTML sources without accepting arbitrary pages", async () => {
     const deepSeek = getCuratedSource("src-deepseek-api-changelog")!;
     const deepSeekItems = await parseControlledHtmlSource(`
       <article><h2 id="date-2026-08-21">Date: 2026-08-21</h2>
@@ -86,6 +86,22 @@ describe("feed ingestion", () => {
     expect(deepSeekItems).toHaveLength(2);
     expect(deepSeekItems[0].canonicalUrl).toContain("#vision-release");
     expect(deepSeekItems[1].canonicalUrl).toContain("#pricing-update");
+
+    const alibaba = getCuratedSource("src-alibaba-model-studio-releases")!;
+    const alibabaItems = await parseControlledHtmlSource(`
+      <table><tbody>
+        <tr><td><p>视频生成</p></td><td><p>2026-08-20</p></td><td><code>wan3.0-video-prime</code></td><td><p>万相 3.0 高速版上线，支持四模态参考和最长 30 秒视频生成。</p></td></tr>
+        <tr><td><p>文本生成</p></td><td><p>2026-08-19</p></td><td><p>全球</p></td><td><code>kimi-k3</code></td><td><p>Kimi 最新旗舰模型上线，支持视觉理解与百万 Token 上下文。</p></td></tr>
+        <tr><td><p>视频生成</p></td><td><p>2026-08-20</p></td><td><code>wan3.0-video-prime</code></td><td><p>重复部署范围中的同一条记录不应重复产生文档。</p></td></tr>
+      </tbody></table>
+    `, alibaba);
+    expect(alibabaItems).toHaveLength(2);
+    expect(alibabaItems[0]).toMatchObject({
+      externalId: "2026-08-20#wan3.0-video-prime",
+      title: "wan3.0-video-prime 上线（视频生成）",
+      publishedAt: "2026-08-19T16:00:00.000Z",
+    });
+    expect(alibabaItems[1].contentExcerpt).toContain("百万 Token");
 
     const kimi = getCuratedSource("src-kimi-platform-blog")!;
     const kimiItems = await parseControlledHtmlSource(`
@@ -99,12 +115,12 @@ describe("feed ingestion", () => {
     expect(kimiItems[0].contentExcerpt).toContain("Token 价格");
   });
 
-  it("keeps exactly twenty approved, unique and controlled sources", () => {
-    expect(curatedSources).toHaveLength(20);
-    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(20);
-    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(20);
+  it("keeps approved, unique and controlled sources including China coverage", () => {
+    expect(curatedSources).toHaveLength(21);
+    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(21);
+    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(21);
     expect(curatedSources.every((source) => source.authorizationStatus === "approved")).toBe(true);
-    expect(curatedSources.filter((source) => source.fetchMethod === "html")).toHaveLength(2);
+    expect(curatedSources.filter((source) => source.fetchMethod === "html")).toHaveLength(3);
     expect(curatedSources.filter((source) => source.sourceType === "media")).toHaveLength(2);
   });
 });
@@ -200,6 +216,7 @@ describe("persisted ingestion and review workflow", () => {
         INGESTION_MAX_ITEMS_PER_SOURCE: 1,
         INGESTION_ANALYSIS_BATCH_SIZE: 1,
         INGESTION_ANALYSIS_CONCURRENCY: 1,
+        INGESTION_ANALYSIS_MAX_AGE_DAYS: 14,
         INGESTION_ANALYSIS_MODE: "auto",
       },
       analysisEnabled: true,
@@ -225,6 +242,7 @@ describe("persisted ingestion and review workflow", () => {
       INGESTION_SOURCE_CONCURRENCY: "5",
       INGESTION_ANALYSIS_BATCH_SIZE: "10",
       INGESTION_ANALYSIS_CONCURRENCY: "3",
+      INGESTION_ANALYSIS_MAX_AGE_DAYS: "14",
       EXTERNAL_REFRESH_SOURCE_BATCH_SIZE: "4",
       EXTERNAL_REFRESH_SOURCE_CONCURRENCY: "2",
       EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: "6",
@@ -235,6 +253,7 @@ describe("persisted ingestion and review workflow", () => {
       INGESTION_SOURCE_CONCURRENCY: 2,
       INGESTION_ANALYSIS_BATCH_SIZE: 6,
       INGESTION_ANALYSIS_CONCURRENCY: 3,
+      INGESTION_ANALYSIS_MAX_AGE_DAYS: 14,
     });
 
     const repository = new MemoryIngestionRepository();
@@ -358,6 +377,17 @@ class MemoryIngestionRepository implements IngestionRepository {
       .filter((document) => document.status === "pending_analysis")
       .slice(0, limit)
       .map((document) => document.id);
+  }
+
+  async expireStaleDocuments(cutoff: string) {
+    let expired = 0;
+    for (const document of this.documents) {
+      if (["pending_analysis", "analysis_failed"].includes(document.status) && document.publishedAt < cutoff) {
+        document.status = "irrelevant";
+        expired += 1;
+      }
+    }
+    return expired;
   }
 
   async insertDocument(input: { id: string; sourceId: string; item: NormalizedFeedItem; discoveredAt: string }) {

@@ -182,11 +182,28 @@ class D1IngestionRepository implements IngestionRepository {
   async listPendingDocumentIds(limit: number): Promise<string[]> {
     const rows = await this.database.prepare(`
       SELECT id FROM source_documents
-      WHERE status = 'pending_analysis'
-      ORDER BY published_at DESC, discovered_at DESC
+      WHERE status IN ('pending_analysis', 'analysis_failed')
+      ORDER BY
+        CASE WHEN source_id IN (
+          'src-deepseek-api-changelog',
+          'src-alibaba-model-studio-releases',
+          'src-kimi-platform-blog'
+        ) THEN 0 ELSE 1 END ASC,
+        published_at DESC,
+        discovered_at DESC
       LIMIT ?
     `).bind(limit).all<{ id: string }>();
     return rows.results.map((row) => row.id);
+  }
+
+  async expireStaleDocuments(cutoff: string, expiredAt: string): Promise<number> {
+    const result = await this.database.prepare(`
+      UPDATE source_documents
+      SET status = 'irrelevant', analyzed_at = ?, analysis_error_code = NULL, updated_at = ?
+      WHERE status IN ('pending_analysis', 'analysis_failed')
+        AND datetime(published_at) < datetime(?)
+    `).bind(expiredAt, expiredAt, cutoff).run();
+    return Number(result.meta.changes ?? 0);
   }
 
   async insertDocument(input: {

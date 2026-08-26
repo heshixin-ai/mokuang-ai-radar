@@ -42,6 +42,7 @@ export interface IngestionRepository {
   }): Promise<void>;
   failRun(input: { id: string; sourceId: string; completedAt: string; errorCode: string }): Promise<void>;
   listDueSources(now: string, limit: number): Promise<DueSource[]>;
+  expireStaleDocuments(cutoff: string, expiredAt: string): Promise<number>;
   listPendingDocumentIds(limit: number): Promise<string[]>;
   insertDocument(input: {
     id: string;
