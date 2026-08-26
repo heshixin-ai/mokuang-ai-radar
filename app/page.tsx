@@ -28,7 +28,7 @@ const productValues = [
 const workflow = [
   { number: "01", title: "发现", text: "每 5 分钟检查来源，识别具有时间意义的新变化。" },
   { number: "02", title: "判断", text: "完成去重、聚类与 AI 分析，同时保留不确定性。" },
-  { number: "03", title: "核验", text: "官方高置信变化通过双重门禁后发布，高风险内容交由人工复核。" },
+  { number: "03", title: "发布", text: "来源、证据、结构与引用通过自动门禁后直接发布，未通过的内容自动拦截。" },
 ];
 
 export const dynamic = "force-dynamic";
@@ -129,7 +129,7 @@ export default async function Home() {
         <div className="workflow-intro">
           <span className="home-kicker">HOW IT WORKS</span>
           <h2 id="workflow-title">机器提高速度，<br /><span>规则守住边界。</span></h2>
-          <p>每条正式事件都要经过来源核验、结构化分析和质量门禁；价格、政策、冲突与低置信内容必须人工复核。</p>
+          <p>每条正式事件都要经过来源核验、结构化分析和自动质量门禁；未满足发布条件的内容不会进入公开页面。</p>
         </div>
         <div className="home-workflow-list">
           {workflow.map((step) => (

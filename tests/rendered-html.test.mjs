@@ -41,6 +41,7 @@ test("事件详情使用事件自己的标题与说明", async () => {
   assert.match(html, /<title>[^<]*Orbit AI 发布 Orbit 3[^<]*模况[^<]*<\/title>/);
   assert.match(html, /property="og:title"[^>]*Orbit AI 发布 Orbit 3|Orbit AI 发布 Orbit 3[^>]*property="og:title"/i);
   assert.doesNotMatch(html, /og\.png/);
+  assert.doesNotMatch(html, /置信度/);
 });
 
 test("事件 API 返回受控 JSON，缺失事件返回统一错误", async () => {
@@ -71,8 +72,8 @@ test("审核后台需要授权身份，并明确安全自动发布边界", async
   });
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /低风险交给规则/);
-  assert.match(html, /高风险交给人/);
-  assert.match(html, /价格、政策、融资、冲突和低置信内容仍必须人工复核/);
-  assert.match(html, /采集、审核与发布后台｜模况/);
+  assert.match(html, /合格事件自动发布/);
+  assert.match(html, /异常内容自动拦截/);
+  assert.match(html, /置信度不低于 80%/);
+  assert.match(html, /采集与发布后台｜模况/);
 });

@@ -9,8 +9,8 @@ import type {
 } from "@/lib/repository/auto-publishing";
 
 const allowedEventTypes = new Set(["model_release", "api_change", "research"]);
-const candidateApprovalNote = "自动发布策略 v1：官方来源、高置信度且无风险标记，进入正式质量门禁。";
-const publicationNote = "自动发布策略 v1：官方证据、高置信度、无复核标记，且草稿通过确定性质量门禁。";
+const candidateApprovalNote = "自动发布策略 v2：官方来源、达到配置阈值且无风险标记，进入正式质量门禁。";
+const publicationNote = "自动发布策略 v2：官方证据、达到配置阈值、无风险标记，且草稿通过确定性质量门禁。";
 
 export type AutoPublishOutcome = {
   candidateId: string;

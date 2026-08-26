@@ -51,7 +51,6 @@ export default async function EventPage({ params }: EventPageProps) {
             <span className="event-type">{eventTypeLabels[event.eventType]}</span>
             <EvidenceBadge level={event.evidenceLevel} />
             <span>{eventStatusLabels[event.status]}</span>
-            <span>置信度 {Math.round(event.confidence * 100)}%</span>
           </div>
           <h1>{event.titleZh}</h1>
           <p>{event.deckZh}</p>
@@ -67,7 +66,7 @@ export default async function EventPage({ params }: EventPageProps) {
                 <p className="detail-lead">{event.whatChanged}</p>
                 <div className="change-grid">
                   <div><span>变化前</span><p>{event.before ?? "来源没有提供可核验的旧状态。"}</p></div>
-                  <div><span>变化后</span><p>{event.after ?? "来源之间仍有冲突，等待人工核对。"}</p></div>
+                  <div><span>变化后</span><p>{event.after ?? "来源之间仍有冲突，暂未形成可发布结论。"}</p></div>
                 </div>
               </div>
             </section>
@@ -127,12 +126,6 @@ export default async function EventPage({ params }: EventPageProps) {
               <div><dt>生成模型</dt><dd>{event.modelId}</dd></div>
               <div><dt>Prompt</dt><dd>{event.promptVersion}</dd></div>
             </dl>
-            {event.needsReview && (
-              <div className="review-box">
-                <strong>需要人工审核</strong>
-                <ul>{event.reviewReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-              </div>
-            )}
           </aside>
         </div>
       </article>
