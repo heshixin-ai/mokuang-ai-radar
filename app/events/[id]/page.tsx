@@ -8,17 +8,6 @@ import { getEventById, isDemoEvent } from "@/lib/repository/events";
 
 type EventPageProps = { params: Promise<{ id: string }> };
 
-const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Asia/Shanghai",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
-  dateStyle: "medium",
-  timeZone: "Asia/Shanghai",
-});
-
 export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
   const { id } = await params;
   const event = await getEventById(id);
@@ -117,16 +106,6 @@ export default async function EventPage({ params }: EventPageProps) {
             </section>
           </div>
 
-          <aside className="detail-aside" aria-label="事件记录">
-            <h2>事件记录</h2>
-            <dl>
-              <div><dt>发布时间</dt><dd><time dateTime={event.publishedAt}>{dateTimeFormatter.format(new Date(event.publishedAt))}</time></dd></div>
-              <div><dt>生效时间</dt><dd>{event.effectiveAt ? dateFormatter.format(new Date(event.effectiveAt)) : "待确认"}</dd></div>
-              <div><dt>来源数量</dt><dd>{event.sources.length} 个</dd></div>
-              <div><dt>生成模型</dt><dd>{event.modelId}</dd></div>
-              <div><dt>Prompt</dt><dd>{event.promptVersion}</dd></div>
-            </dl>
-          </aside>
         </div>
       </article>
     </main>

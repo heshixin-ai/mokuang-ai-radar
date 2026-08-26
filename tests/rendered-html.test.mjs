@@ -25,6 +25,8 @@ test("首页呈现模况产品信息而非 starter", async () => {
   assert.match(html, /发生的变化/);
   assert.match(html, /演示数据|安全门禁/);
   assert.match(html, /值得你处理的变化/);
+  assert.doesNotMatch(html, /href="\/entities|href="\/about|href="\/#workflow/);
+  assert.doesNotMatch(html, /处理流程|实体档案|了解我们如何筛选/);
   assert.match(html, /property="og:image"[^>]*content="http:\/\/localhost(?::3000)?\/og-home-v2\.png"|content="http:\/\/localhost(?::3000)?\/og-home-v2\.png"[^>]*property="og:image"/i);
   assert.match(html, /name="twitter:card"[^>]*content="summary_large_image"|content="summary_large_image"[^>]*name="twitter:card"/i);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton/i);
@@ -42,6 +44,16 @@ test("事件详情使用事件自己的标题与说明", async () => {
   assert.match(html, /property="og:title"[^>]*Orbit AI 发布 Orbit 3|Orbit AI 发布 Orbit 3[^>]*property="og:title"/i);
   assert.doesNotMatch(html, /og\.png/);
   assert.doesNotMatch(html, /置信度/);
+  assert.doesNotMatch(html, /事件记录|detail-aside/);
+});
+
+test("已移除的实体与关于栏目不再提供公开页面", async () => {
+  const [entitiesResponse, aboutResponse] = await Promise.all([
+    request("/entities"),
+    request("/about"),
+  ]);
+  assert.equal(entitiesResponse.status, 404);
+  assert.equal(aboutResponse.status, 404);
 });
 
 test("事件 API 返回受控 JSON，缺失事件返回统一错误", async () => {
