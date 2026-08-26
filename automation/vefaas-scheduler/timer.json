@@ -1,9 +1,0 @@
-{
-  "Name": "mokuang-refresh-every-5m",
-  "Description": "每 5 分钟调用模况受保护的小批量刷新入口",
-  "Enabled": true,
-  "Crontab": "*/5 * * * *",
-  "Payload": "{}",
-  "EnableConcurrency": false,
-  "Retries": 1
-}
