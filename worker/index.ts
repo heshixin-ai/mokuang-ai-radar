@@ -58,6 +58,10 @@ interface ScheduledController {
   noRetry(): void;
 }
 
+const READER_CACHE_TTL_MS = 60_000;
+const READER_CACHE_MAX_ENTRIES = 64;
+const readerResponseCache = new Map<string, { expiresAt: number; response: Response }>();
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -84,16 +88,16 @@ const worker = {
     }
 
     const cacheKey = access.session && isCacheableReaderRequest(request)
-      ? new Request(request.url, { method: "GET" })
+      ? request.url
       : null;
     if (cacheKey) {
-      const cached = await caches.default.match(cacheKey);
-      if (cached) return secureResponse(cached, access.enabled);
+      const cached = readCachedReaderResponse(cacheKey);
+      if (cached) return secureResponse(cached, access.enabled, true);
     }
 
     const response = await handler.fetch(request, env, ctx);
     const secured = secureResponse(response, access.enabled, Boolean(cacheKey));
-    if (cacheKey && secured.ok) ctx.waitUntil(caches.default.put(cacheKey, secured.clone()));
+    if (cacheKey && secured.ok) writeCachedReaderResponse(cacheKey, secured);
     return secured;
   },
 
@@ -193,15 +197,33 @@ function isCacheableReaderRequest(request: Request): boolean {
     || pathname === "/api/v1/events";
 }
 
+function readCachedReaderResponse(key: string): Response | null {
+  const cached = readerResponseCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    readerResponseCache.delete(key);
+    return null;
+  }
+  return cached.response.clone();
+}
+
+function writeCachedReaderResponse(key: string, response: Response): void {
+  if (readerResponseCache.size >= READER_CACHE_MAX_ENTRIES) {
+    const oldestKey = readerResponseCache.keys().next().value;
+    if (oldestKey) readerResponseCache.delete(oldestKey);
+  }
+  readerResponseCache.set(key, { expiresAt: Date.now() + READER_CACHE_TTL_MS, response: response.clone() });
+}
+
 function secureResponse(response: Response, inviteEnabled: boolean, cacheable = false): Response {
-    const headers = new Headers(response.headers);
-    headers.set("x-content-type-options", "nosniff");
-    headers.set("x-frame-options", "DENY");
-    headers.set("referrer-policy", "strict-origin-when-cross-origin");
-    headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
-    if (inviteEnabled) headers.set("x-robots-tag", "noindex, nofollow");
-    if (cacheable && response.ok) headers.set("cache-control", "public, s-maxage=60, max-age=0");
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  const headers = new Headers(response.headers);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-frame-options", "DENY");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  if (inviteEnabled) headers.set("x-robots-tag", "noindex, nofollow");
+  if (cacheable && response.ok) headers.set("cache-control", "private, max-age=60");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 const runtimeEnvironmentKeys = [
