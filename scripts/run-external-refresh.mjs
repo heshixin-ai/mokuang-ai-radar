@@ -4,11 +4,7 @@ const sitesBypassToken = requiredSecret("SITES_BYPASS_TOKEN");
 const refreshPayload = await callInternalEndpoint("/api/v1/admin/refresh", "MOKUANG_REFRESH_FAILED");
 const autoPublishPayload = await callInternalEndpoint("/api/v1/admin/auto-publish", "MOKUANG_AUTO_PUBLISH_FAILED");
 
-if ((autoPublishPayload?.data?.autoPublish?.failed ?? 0) > 0) {
-  throw new Error("MOKUANG_AUTO_PUBLISH_PARTIAL_FAILURE");
-}
-
-console.log(JSON.stringify({
+const summary = {
   ok: true,
   scheduledAt: refreshPayload?.data?.refresh?.scheduledAt ?? null,
   sourcesAttempted: refreshPayload?.data?.refresh?.sourcesAttempted ?? 0,
@@ -20,9 +16,15 @@ console.log(JSON.stringify({
   autoPublishAttempted: autoPublishPayload?.data?.autoPublish?.attempted ?? 0,
   published: autoPublishPayload?.data?.autoPublish?.published ?? 0,
   autoPublishDeferred: autoPublishPayload?.data?.autoPublish?.deferred ?? 0,
+  autoPublishFailed: autoPublishPayload?.data?.autoPublish?.failed ?? 0,
   refreshDurationMs: refreshPayload?.meta?.durationMs ?? null,
   autoPublishDurationMs: autoPublishPayload?.meta?.durationMs ?? null,
-}));
+};
+console.log(JSON.stringify(summary));
+
+if (summary.autoPublishFailed > 0) {
+  throw new Error("MOKUANG_AUTO_PUBLISH_PARTIAL_FAILURE");
+}
 
 async function callInternalEndpoint(pathname, failureCode) {
   const response = await fetch(new URL(pathname, siteUrl), {
@@ -32,7 +34,7 @@ async function callInternalEndpoint(pathname, failureCode) {
       "oai-sites-authorization": `Bearer ${sitesBypassToken}`,
       "user-agent": "mokuang-external-scheduler/1.0",
     },
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(120_000),
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
