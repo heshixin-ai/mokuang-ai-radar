@@ -199,6 +199,7 @@ describe("persisted ingestion and review workflow", () => {
         INGESTION_SOURCE_CONCURRENCY: 2,
         INGESTION_MAX_ITEMS_PER_SOURCE: 1,
         INGESTION_ANALYSIS_BATCH_SIZE: 1,
+        INGESTION_ANALYSIS_CONCURRENCY: 1,
         INGESTION_ANALYSIS_MODE: "auto",
       },
       analysisEnabled: true,
@@ -223,14 +224,17 @@ describe("persisted ingestion and review workflow", () => {
       INGESTION_SOURCE_BATCH_SIZE: "20",
       INGESTION_SOURCE_CONCURRENCY: "5",
       INGESTION_ANALYSIS_BATCH_SIZE: "10",
+      INGESTION_ANALYSIS_CONCURRENCY: "3",
       EXTERNAL_REFRESH_SOURCE_BATCH_SIZE: "4",
       EXTERNAL_REFRESH_SOURCE_CONCURRENCY: "2",
-      EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: "3",
+      EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: "6",
+      EXTERNAL_REFRESH_ANALYSIS_CONCURRENCY: "3",
     });
     expect(config).toMatchObject({
       INGESTION_SOURCE_BATCH_SIZE: 4,
       INGESTION_SOURCE_CONCURRENCY: 2,
-      INGESTION_ANALYSIS_BATCH_SIZE: 3,
+      INGESTION_ANALYSIS_BATCH_SIZE: 6,
+      INGESTION_ANALYSIS_CONCURRENCY: 3,
     });
 
     const repository = new MemoryIngestionRepository();
