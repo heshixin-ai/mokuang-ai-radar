@@ -8,7 +8,7 @@ import type {
   AutoPublishingRepository,
 } from "@/lib/repository/auto-publishing";
 
-const allowedEventTypes = new Set(["model_release", "api_change", "research"]);
+const allowedEventTypes = new Set(["model_release", "api_change", "policy", "research"]);
 const candidateApprovalNote = "自动发布策略 v2：官方来源、达到配置阈值且无风险标记，进入正式质量门禁。";
 const publicationNote = "自动发布策略 v2：官方证据、达到配置阈值、无风险标记，且草稿通过确定性质量门禁。";
 
@@ -115,12 +115,17 @@ export function candidatePolicyReason(
 ): string | null {
   if (config.AUTO_PUBLISH_MODE !== "safe") return "auto_publish_disabled";
   if (candidate.provider !== "deepseek") return "provider_not_production";
-  if (candidate.sourceType !== "official") return "source_not_official";
+  const isPrimaryResearch = candidate.eventType === "research" && candidate.sourceType === "research";
+  if (candidate.sourceType !== "official" && !isPrimaryResearch) return "source_not_official";
   if (candidate.evidenceLevel !== "official") return "evidence_not_official";
   if (!allowedEventTypes.has(candidate.eventType)) return "event_type_requires_review";
-  if (candidate.needsReview) return "candidate_requires_review";
-  if (candidate.reviewReasons.length > 0) return "candidate_review_reasons_present";
-  if (candidate.escalated) return "candidate_escalated";
+  const isOfficialPolicy = candidate.eventType === "policy" && candidate.sourceType === "official";
+  const hasOnlyAutomaticPolicyReview = isOfficialPolicy
+    && candidate.reviewReasons.length > 0
+    && candidate.reviewReasons.every((reason) => reason === "high_risk_event_type");
+  if (candidate.needsReview && !hasOnlyAutomaticPolicyReview) return "candidate_requires_review";
+  if (candidate.reviewReasons.length > 0 && !hasOnlyAutomaticPolicyReview) return "candidate_review_reasons_present";
+  if (candidate.escalated && !hasOnlyAutomaticPolicyReview) return "candidate_escalated";
   if (candidate.confidence < config.AUTO_PUBLISH_MIN_CONFIDENCE) return "confidence_below_threshold";
   return null;
 }
@@ -130,7 +135,10 @@ export function draftPolicyReason(event: EventAdminView, config: AutoPublishConf
   if (event.status !== "draft") return "event_state_requires_review";
   if (!allowedEventTypes.has(event.eventType)) return "event_type_requires_review";
   if (event.evidenceLevel !== "official") return "evidence_not_official";
-  if (event.sources.length === 0 || event.sources.some((source) => source.sourceType !== "official")) {
+  const allowsPrimaryResearch = event.eventType === "research";
+  if (event.sources.length === 0 || event.sources.some((source) => (
+    source.sourceType !== "official" && !(allowsPrimaryResearch && source.sourceType === "research")
+  ))) {
     return "draft_source_not_official";
   }
   if (event.qualityStatus !== "ready" || event.qualityIssues.length > 0) return "draft_quality_blocked";

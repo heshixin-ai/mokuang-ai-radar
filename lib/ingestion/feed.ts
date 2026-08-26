@@ -39,8 +39,12 @@ export async function fetchAndParseFeed(
       options.timeoutMs ?? 12_000,
       url,
     );
-    if (!(articleResponse.headers.get("content-type")?.toLowerCase() ?? "").includes("text/html")) {
-      throw new FeedIngestionError("FEED_CONTENT_TYPE_UNSUPPORTED", "Article did not return HTML");
+    const articleContentType = articleResponse.headers.get("content-type")?.toLowerCase() ?? "";
+    const isGovernmentPolicyJson = source.id === "src-china-government-policy"
+      && new URL(url).pathname.endsWith("/ZUIXINZHENGCE.json")
+      && articleContentType.includes("application/json");
+    if (!articleContentType.includes("text/html") && !isGovernmentPolicyJson) {
+      throw new FeedIngestionError("FEED_CONTENT_TYPE_UNSUPPORTED", "Source detail returned an unsupported content type");
     }
     return readLimitedBody(articleResponse);
   });
@@ -170,7 +174,70 @@ export async function parseControlledHtmlSource(
   if (source.id === "src-deepseek-api-changelog") return parseDeepSeekChangelog(html, source);
   if (source.id === "src-alibaba-model-studio-releases") return parseAlibabaModelReleases(html, source);
   if (source.id === "src-kimi-platform-blog") return parseKimiBlog(html, source, loadPage);
+  if (source.id === "src-china-government-policy") return parseChinaGovernmentPolicy(html, source, loadPage);
   throw new FeedIngestionError("HTML_SOURCE_UNSUPPORTED", "HTML source does not have a controlled parser");
+}
+
+async function parseChinaGovernmentPolicy(
+  html: string,
+  source: SourceDefinition,
+  loadPage?: (url: string) => Promise<string>,
+): Promise<NormalizedFeedItem[]> {
+  if (!loadPage || !html.includes("ZUIXINZHENGCE.json")) {
+    throw new FeedIngestionError("GOV_POLICY_INDEX_INVALID", "Government policy index did not expose its public data file");
+  }
+
+  let records: unknown;
+  try {
+    records = JSON.parse(await loadPage(new URL("./ZUIXINZHENGCE.json", source.feedUrl).toString()));
+  } catch {
+    throw new FeedIngestionError("GOV_POLICY_JSON_INVALID", "Government policy data could not be parsed");
+  }
+  if (!Array.isArray(records)) {
+    throw new FeedIngestionError("GOV_POLICY_JSON_INVALID", "Government policy data did not contain a list");
+  }
+
+  const items = records.map((record) => {
+    if (!record || typeof record !== "object") return null;
+    const value = record as Record<string, unknown>;
+    const title = cleanText(String(value.TITLE ?? "")).slice(0, 500);
+    const rawUrl = String(value.URL ?? "");
+    const publishedDate = String(value.DOCRELPUBTIME ?? "");
+    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(publishedDate)) return null;
+    try {
+      return {
+        title,
+        canonicalUrl: canonicalizeItemUrl(rawUrl, source),
+        publishedAt: new Date(`${publishedDate}T00:00:00+08:00`).toISOString(),
+      };
+    } catch {
+      return null;
+    }
+  }).filter((item): item is { title: string; canonicalUrl: string; publishedAt: string } => Boolean(item))
+    .slice(0, MAX_HTML_ITEMS);
+
+  const enriched = await mapInBatches(items, 3, async (item) => {
+    let articleText = "";
+    try {
+      articleText = cleanText(extractGovernmentPolicyArticleHtml(await loadPage(item.canonicalUrl)));
+    } catch {
+      articleText = "";
+    }
+    return {
+      externalId: item.canonicalUrl,
+      canonicalUrl: item.canonicalUrl,
+      title: item.title,
+      author: source.name,
+      publishedAt: item.publishedAt,
+      contentExcerpt: cleanText(`${item.title}。${articleText || item.title}`).slice(0, 4_000),
+    };
+  });
+  return addContentHashes(enriched.filter((item) => item.contentExcerpt.length >= 20));
+}
+
+function extractGovernmentPolicyArticleHtml(html: string): string {
+  const content = html.match(/<div\b[^>]*(?:id="UCAP-CONTENT"|class="[^"]*pages_content[^"]*")[^>]*>([\s\S]*?)<\/div>/i);
+  return content?.[1] ?? extractArticleHtml(html);
 }
 
 async function parseDeepSeekChangelog(html: string, source: SourceDefinition): Promise<NormalizedFeedItem[]> {
