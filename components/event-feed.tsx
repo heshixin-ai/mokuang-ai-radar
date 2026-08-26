@@ -102,7 +102,26 @@ export function EventFeed({
           <h2 id="feed-title">值得你处理的变化</h2>
         </div>
         <div className="feed-controls">
-          <label className="time-filter">
+          <label className="feed-filter-control">
+            <span>类型</span>
+            <select
+              value={activeFilter}
+              onChange={(event) => changeTypeFilter(event.target.value as "all" | EventType)}
+              disabled={!isHydrated}
+              aria-label="按事件类型筛选"
+            >
+              {filters.map((filter) => {
+                const count = filterCounts[filter.value];
+                const unavailable = filter.value !== "all" && count === 0;
+                return (
+                  <option value={filter.value} key={filter.value} disabled={unavailable}>
+                    {filter.label} {count}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          <label className="feed-filter-control">
             <span>时间</span>
             <select
               value={activeTimeRange}
@@ -113,30 +132,6 @@ export function EventFeed({
               {timeRanges.map((range) => <option value={range.value} key={range.value}>{range.label}</option>)}
             </select>
           </label>
-          <div className="type-filter-group">
-            <span>类型</span>
-            <div className="filter-row" aria-label="按事件类型筛选">
-              {filters.map((filter) => {
-                const count = filterCounts[filter.value];
-                const unavailable = filter.value !== "all" && count === 0;
-
-                return (
-                  <button
-                    className={`filter ${activeFilter === filter.value ? "active" : ""}`}
-                    key={filter.value}
-                    onClick={() => changeTypeFilter(filter.value)}
-                    type="button"
-                    aria-pressed={activeFilter === filter.value}
-                    aria-label={`${filter.label}，${count} 条事件`}
-                    disabled={!isHydrated || unavailable}
-                    title={unavailable ? "当前时间范围内暂无这类事件" : undefined}
-                  >
-                    {filter.label}<small aria-hidden="true">{count}</small>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
 
