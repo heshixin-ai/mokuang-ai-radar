@@ -12,6 +12,8 @@ Sites 生产环境的单次审核请求有明确执行期限。当前使用 `AI_
 
 如需受控服务端自动化审核，可配置至少 32 字符的 `REVIEW_AUTOMATION_TOKEN` 托管 Secret，并通过标准 Bearer 头调用审核 API。该身份只用于可审计的内部操作，不能替代浏览器 ChatGPT 登录和 `REVIEW_ADMIN_EMAILS` 白名单。
 
+不要只根据构建产物中的 `triggers.crons` 判断线上 Cron 已启用。当前 Sites 公测环境在 2026-08-26 的实测中没有执行 Worker scheduled handler；上线无人值守更新前，必须在目标平台观察到 scheduled 日志和 D1 `ingestion_runs.trigger_kind=scheduled` 记录。若 Sites 仍不支持后台调度，应使用外部调度器或迁移到明确支持 Cron Trigger 的托管平台。
+
 ## 每日检查
 
 - `/review/operations` 是否出现连续 3 次来源失败、邮件失败或观测不足。
