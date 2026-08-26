@@ -76,7 +76,7 @@ describe("feed ingestion", () => {
     expect(items[0].canonicalUrl).toBe("https://huggingface.co/blog/model-release");
   });
 
-  it("parses controlled DeepSeek, Alibaba and Kimi HTML sources without accepting arbitrary pages", async () => {
+  it("parses controlled DeepSeek, Alibaba, Kimi and government policy HTML sources", async () => {
     const deepSeek = getCuratedSource("src-deepseek-api-changelog")!;
     const deepSeekItems = await parseControlledHtmlSource(`
       <article><h2 id="date-2026-08-21">Date: 2026-08-21</h2>
@@ -113,15 +113,31 @@ describe("feed ingestion", () => {
       publishedAt: "2026-08-20T00:00:00.000Z",
     });
     expect(kimiItems[0].contentExcerpt).toContain("Token 价格");
+
+    const governmentPolicy = getCuratedSource("src-china-government-policy")!;
+    const governmentPolicyItems = await parseControlledHtmlSource(`
+      <script>var endpoint = "./ZUIXINZHENGCE.json";</script>
+    `, governmentPolicy, async (url) => url.endsWith(".json") ? JSON.stringify([{
+      TITLE: "国务院印发人工智能应用管理办法",
+      URL: "https://www.gov.cn/zhengce/202608/content_7000000.htm",
+      DOCRELPUBTIME: "2026-08-26",
+    }]) : "<article><p>办法明确人工智能服务提供者的备案、评估与信息披露要求，自发布之日起施行。</p></article>");
+    expect(governmentPolicyItems[0]).toMatchObject({
+      title: "国务院印发人工智能应用管理办法",
+      publishedAt: "2026-08-25T16:00:00.000Z",
+      author: "中国政府网最新政策",
+    });
+    expect(governmentPolicyItems[0].contentExcerpt).toContain("备案、评估与信息披露要求");
   });
 
   it("keeps approved, unique and controlled sources including China coverage", () => {
-    expect(curatedSources).toHaveLength(21);
-    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(21);
-    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(21);
+    expect(curatedSources).toHaveLength(23);
+    expect(new Set(curatedSources.map((source) => source.id)).size).toBe(23);
+    expect(new Set(curatedSources.map((source) => source.feedUrl)).size).toBe(23);
     expect(curatedSources.every((source) => source.authorizationStatus === "approved")).toBe(true);
-    expect(curatedSources.filter((source) => source.fetchMethod === "html")).toHaveLength(3);
+    expect(curatedSources.filter((source) => source.fetchMethod === "html")).toHaveLength(4);
     expect(curatedSources.filter((source) => source.sourceType === "media")).toHaveLength(2);
+    expect(curatedSources.filter((source) => source.sourceType === "research")).toHaveLength(1);
   });
 });
 

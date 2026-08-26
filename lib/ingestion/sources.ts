@@ -3,6 +3,8 @@ import { sourceDefinitionSchema, type SourceDefinition } from "./types";
 const officialRssNote = "官方页面明确提供 RSS 入口；仅保存标题、链接、时间与不超过 4,000 字符的必要摘录。";
 const officialAtomNote = "官方项目公开提供 Atom/Release 入口；仅保存发布标题、链接、时间与不超过 4,000 字符的必要摘录。";
 const officialHtmlNote = "官方公开更新页没有可用 Feed；使用来源专用只读解析规则，仅保存标题、链接、时间与不超过 4,000 字符的必要摘录。";
+const officialPolicyHtmlNote = "政府官方网站公开提供政策目录与原文；使用来源专用只读解析规则，仅保存政策标题、原文链接、发布日期与不超过 4,000 字符的必要摘录。";
+const researchRssNote = "论文预印本平台公开提供学科 RSS；仅保存论文标题、作者、摘要、链接与发布时间，不抓取 PDF 全文。";
 const mediaRssNote = "媒体公开提供主题 RSS；仅保存必要短摘录并始终保留原文链接，不复制完整正文。";
 const rssRobotsNote = "只访问公开 RSS 端点，不抓取登录页、付费墙或受访问控制页面。";
 const htmlRobotsNote = "只访问公开列表页及其公开文章页，不访问登录、付费、API 或 robots 明确限制的路径。";
@@ -219,6 +221,21 @@ export const curatedSources: SourceDefinition[] = [
     robotsNote: rssRobotsNote,
   },
   {
+    id: "src-china-government-policy",
+    name: "中国政府网最新政策",
+    homepageUrl: "https://www.gov.cn/zhengce/zuixin/",
+    feedUrl: "https://www.gov.cn/zhengce/zuixin/",
+    sourceType: "official",
+    fetchMethod: "html",
+    status: "active",
+    priority: 72,
+    frequencyMinutes: 30,
+    allowedHosts: ["www.gov.cn"],
+    authorizationStatus: "approved",
+    termsNote: officialPolicyHtmlNote,
+    robotsNote: htmlRobotsNote,
+  },
+  {
     id: "src-nist-ai-news",
     name: "NIST News",
     homepageUrl: "https://www.nist.gov/artificial-intelligence",
@@ -231,6 +248,21 @@ export const curatedSources: SourceDefinition[] = [
     allowedHosts: ["nist.gov"],
     authorizationStatus: "approved",
     termsNote: officialRssNote,
+    robotsNote: rssRobotsNote,
+  },
+  {
+    id: "src-arxiv-ai",
+    name: "arXiv Artificial Intelligence",
+    homepageUrl: "https://arxiv.org/list/cs.AI/recent",
+    feedUrl: "https://export.arxiv.org/rss/cs.AI",
+    sourceType: "research",
+    fetchMethod: "rss",
+    status: "active",
+    priority: 77,
+    frequencyMinutes: 60,
+    allowedHosts: ["export.arxiv.org", "arxiv.org"],
+    authorizationStatus: "approved",
+    termsNote: researchRssNote,
     robotsNote: rssRobotsNote,
   },
   {

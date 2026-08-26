@@ -48,6 +48,20 @@ describe("safe auto-publish policy", () => {
 
   it("allows an official production candidate at the configured 0.8 threshold", () => {
     expect(candidatePolicyReason({ ...safeCandidate, confidence: 0.8 }, safeConfig)).toBeNull();
+    expect(candidatePolicyReason({ ...safeCandidate, eventType: "research", sourceType: "research" }, safeConfig)).toBeNull();
+    expect(candidatePolicyReason({
+      ...safeCandidate,
+      eventType: "policy",
+      needsReview: true,
+      reviewReasons: ["high_risk_event_type"],
+      escalated: true,
+    }, safeConfig)).toBeNull();
+    expect(candidatePolicyReason({
+      ...safeCandidate,
+      eventType: "policy",
+      needsReview: true,
+      escalated: true,
+    }, safeConfig)).toBe("candidate_requires_review");
   });
 
   it.each([
@@ -74,7 +88,7 @@ describe("safe auto-publish orchestration", () => {
   it("skips risky candidates and publishes one bounded safe candidate with a full audit actor", async () => {
     const calls: string[] = [];
     const repository = memoryRepository([
-      { ...safeCandidate, id: "cand_risky", eventType: "policy", needsReview: true },
+      { ...safeCandidate, id: "cand_risky", eventType: "pricing", needsReview: true },
       safeCandidate,
     ]);
     const summary = await runSafeAutoPublishingBatch({
