@@ -42,7 +42,7 @@ export default async function EventPage({ params }: EventPageProps) {
 
   return (
     <main>
-      <SiteHeader />
+      <SiteHeader active="intel" />
       <article className="detail-shell">
         <Link className="back-link" href="/#events">← 返回情报列表</Link>
 
