@@ -14,7 +14,7 @@ Sites 生产环境的单次审核请求有明确执行期限。当前使用 `AI_
 
 不要只根据构建产物中的 `triggers.crons` 判断线上 Cron 已启用。当前 Sites 公测环境在 2026-08-26 的实测中没有执行 Worker scheduled handler；上线无人值守更新前，必须在目标平台观察到 scheduled 日志和 D1 `ingestion_runs.trigger_kind=scheduled` 记录。若 Sites 仍不支持后台调度，应使用外部调度器或迁移到明确支持 Cron Trigger 的托管平台。
 
-外部调度器先调用 `POST /api/v1/admin/refresh`，再调用 `POST /api/v1/admin/auto-publish`，不得循环调用单来源或单候选接口。生产使用私有 GitHub Actions 每 5 分钟触发一次；采集批量由 `EXTERNAL_REFRESH_*` 限制，自动发布批量由 `AUTO_PUBLISH_*` 限制。私有 Sites 请求需要同时携带 Sites 访问绕过 Token 和审核自动化 Token，两者必须作为仓库 Actions Secret 保存。轮换任一 Token 后，应先手动运行工作流，再观察一个真实定时点；日志和文档不得记录 Token 明文。
+外部调度器先调用 `POST /api/v1/admin/refresh`，再调用 `POST /api/v1/admin/auto-publish`，不得循环调用单来源或单候选接口。生产使用私有 GitHub Actions 每 5 分钟触发一次；当前生产容量为每轮最多抓取 5 个到期来源、并发 3 个、分析 6 篇（最多 3 路并发），并在安全门禁通过时最多发布 1 条。采集批量由 `EXTERNAL_REFRESH_*` 限制，自动发布批量由 `AUTO_PUBLISH_*` 限制。私有 Sites 请求需要同时携带 Sites 访问绕过 Token 和审核自动化 Token，两者必须作为仓库 Actions Secret 保存。轮换任一 Token 后，应先手动运行工作流，再观察一个真实定时点；日志和文档不得记录 Token 明文。
 
 `AUTO_PUBLISH_MODE` 默认必须为 `off`。只有在自动化测试和一条真实官方候选验证通过后才设为 `safe`。发生单个重大错误时，立即切回 `off`，撤下错误事件，并恢复全量人工发布。
 

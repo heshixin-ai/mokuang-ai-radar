@@ -119,7 +119,7 @@ describe("safe auto-publish orchestration", () => {
     };
 
     const summary = await runSafeAutoPublishingBatch({
-      repository: memoryRepository([safeCandidate]),
+      repository: memoryRepository([safeCandidate], calls),
       operations,
       config: safeConfig,
       actor,
@@ -141,19 +141,42 @@ describe("safe auto-publish orchestration", () => {
     };
 
     const summary = await runSafeAutoPublishingBatch({
-      repository: memoryRepository([safeCandidate]),
+      repository: memoryRepository([safeCandidate], calls),
       operations,
       config: safeConfig,
       actor,
     });
 
     expect(calls.some((call) => call.startsWith("publish:"))).toBe(false);
+    expect(calls).toContain("review:cand_safe:draft_quality_blocked");
     expect(summary.outcomes[0]).toMatchObject({ status: "deferred", reason: "draft_quality_blocked" });
+  });
+
+  it("moves a transient workflow failure to the back of the queue", async () => {
+    const calls: string[] = [];
+    const operations = successfulOperations(calls);
+    operations.createDraft = async () => {
+      throw new Error("temporary model failure");
+    };
+
+    const summary = await runSafeAutoPublishingBatch({
+      repository: memoryRepository([safeCandidate], calls),
+      operations,
+      config: safeConfig,
+      actor,
+    });
+
+    expect(calls).toContain("failure:cand_safe");
+    expect(summary.outcomes[0]).toMatchObject({ status: "failed", reason: "workflow_failed" });
   });
 });
 
-function memoryRepository(candidates: AutoPublishCandidate[]): AutoPublishingRepository {
-  return { listCandidates: async (limit) => candidates.slice(0, limit) };
+function memoryRepository(candidates: AutoPublishCandidate[], calls: string[] = []): AutoPublishingRepository {
+  return {
+    listCandidates: async (limit) => candidates.slice(0, limit),
+    markCandidateForReview: async (candidateId, reason) => { calls.push(`review:${candidateId}:${reason}`); },
+    recordCandidateFailure: async (candidateId) => { calls.push(`failure:${candidateId}`); },
+  };
 }
 
 function successfulOperations(calls: string[]): AutoPublishingOperations {

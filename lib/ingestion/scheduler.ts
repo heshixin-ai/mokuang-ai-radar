@@ -82,20 +82,26 @@ export async function runScheduledRefresh(options: {
     const documentIds = await options.repository.listPendingDocumentIds(
       options.schedulerConfig.INGESTION_ANALYSIS_BATCH_SIZE,
     );
-    for (const documentId of documentIds) {
-      analysesAttempted += 1;
-      try {
-        const result = await analyzeSourceDocument(documentId, {
-          repository: options.repository,
-          config: options.aiConfig,
-          clock,
-        });
-        if (result.status === "candidate_created") candidatesCreated += 1;
-        else irrelevantCount += 1;
-      } catch {
-        analysesFailed += 1;
-      }
-    }
+    const analysisResults = await mapInBatches(
+      documentIds,
+      options.schedulerConfig.INGESTION_ANALYSIS_CONCURRENCY,
+      async (documentId) => {
+        try {
+          const result = await analyzeSourceDocument(documentId, {
+            repository: options.repository,
+            config: options.aiConfig,
+            clock,
+          });
+          return result.status === "candidate_created" ? "candidate" as const : "irrelevant" as const;
+        } catch {
+          return "failed" as const;
+        }
+      },
+    );
+    analysesAttempted = analysisResults.length;
+    candidatesCreated = analysisResults.filter((result) => result === "candidate").length;
+    irrelevantCount = analysisResults.filter((result) => result === "irrelevant").length;
+    analysesFailed = analysisResults.filter((result) => result === "failed").length;
   }
 
   const succeeded = sourceResults.filter((result) => result.status === "succeeded");

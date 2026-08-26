@@ -75,6 +75,7 @@ export async function runSafeAutoPublishingBatch(options: {
       const draft = await options.operations.createDraft(candidate.id, options.actor);
       const draftReason = draftPolicyReason(draft, options.config);
       if (draftReason) {
+        await options.repository.markCandidateForReview(candidate.id, draftReason);
         outcomes.push({ candidateId: candidate.id, eventId: draft.id, status: "deferred", reason: draftReason });
         continue;
       }
@@ -87,6 +88,11 @@ export async function runSafeAutoPublishingBatch(options: {
       const published = await options.operations.publishEvent(draft.id, publicationNote, options.actor);
       outcomes.push({ candidateId: candidate.id, eventId: published.id, status: "published", reason: "safe_policy_passed" });
     } catch {
+      try {
+        await options.repository.recordCandidateFailure(candidate.id);
+      } catch {
+        // Keep the original workflow failure as the public outcome; a later run may retry the candidate.
+      }
       outcomes.push({ candidateId: candidate.id, eventId: null, status: "failed", reason: "workflow_failed" });
     }
   }

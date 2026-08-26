@@ -15,6 +15,8 @@ export type AutoPublishCandidate = {
 
 export interface AutoPublishingRepository {
   listCandidates(limit: number): Promise<AutoPublishCandidate[]>;
+  markCandidateForReview(candidateId: string, reason: string): Promise<void>;
+  recordCandidateFailure(candidateId: string): Promise<void>;
 }
 
 export class D1AutoPublishingRepository implements AutoPublishingRepository {
@@ -38,7 +40,7 @@ export class D1AutoPublishingRepository implements AutoPublishingRepository {
           cc.id IS NULL
           OR (cc.action = 'create_new' AND cc.status IN ('confirmed', 'dismissed'))
         )
-      ORDER BY CASE WHEN e.status = 'draft' THEN 0 ELSE 1 END, c.created_at ASC
+      ORDER BY CASE WHEN e.status = 'draft' THEN 0 ELSE 1 END, c.updated_at ASC
       LIMIT ?
     `).bind(limit).all<Record<string, unknown>>();
 
@@ -54,6 +56,26 @@ export class D1AutoPublishingRepository implements AutoPublishingRepository {
       provider: String(row.provider),
       escalated: Boolean(row.escalated),
     }));
+  }
+
+  async markCandidateForReview(candidateId: string, reason: string): Promise<void> {
+    const row = await this.database.prepare(`
+      SELECT review_reasons_json FROM event_candidates WHERE id = ?
+    `).bind(candidateId).first<{ review_reasons_json: string }>();
+    if (!row) return;
+    const reasons = [...new Set([...parseStringArray(row.review_reasons_json), reason])];
+    await this.database.prepare(`
+      UPDATE event_candidates
+      SET needs_review = 1, review_reasons_json = ?, updated_at = ?
+      WHERE id = ? AND review_status IN ('pending', 'approved')
+    `).bind(JSON.stringify(reasons), new Date().toISOString(), candidateId).run();
+  }
+
+  async recordCandidateFailure(candidateId: string): Promise<void> {
+    await this.database.prepare(`
+      UPDATE event_candidates SET updated_at = ?
+      WHERE id = ? AND review_status IN ('pending', 'approved')
+    `).bind(new Date().toISOString(), candidateId).run();
   }
 }
 
