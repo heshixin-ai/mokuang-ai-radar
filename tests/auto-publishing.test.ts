@@ -18,7 +18,7 @@ const actor: ReviewActor = {
 
 const safeConfig = readAutoPublishConfig({
   AUTO_PUBLISH_MODE: "safe",
-  AUTO_PUBLISH_MIN_CONFIDENCE: "0.9",
+  AUTO_PUBLISH_MIN_CONFIDENCE: "0.8",
   AUTO_PUBLISH_BATCH_SIZE: "1",
 });
 
@@ -39,15 +39,15 @@ describe("safe auto-publish policy", () => {
   it("is fail-closed by default and accepts only an explicit safe mode", () => {
     expect(readAutoPublishConfig({})).toMatchObject({
       AUTO_PUBLISH_MODE: "off",
-      AUTO_PUBLISH_MIN_CONFIDENCE: 0.9,
+      AUTO_PUBLISH_MIN_CONFIDENCE: 0.8,
       AUTO_PUBLISH_BATCH_SIZE: 1,
     });
     expect(safeConfig.AUTO_PUBLISH_MODE).toBe("safe");
     expect(() => readAutoPublishConfig({ AUTO_PUBLISH_MIN_CONFIDENCE: "0.5" })).toThrow();
   });
 
-  it("allows a high-confidence official production candidate", () => {
-    expect(candidatePolicyReason(safeCandidate, safeConfig)).toBeNull();
+  it("allows an official production candidate at the configured 0.8 threshold", () => {
+    expect(candidatePolicyReason({ ...safeCandidate, confidence: 0.8 }, safeConfig)).toBeNull();
   });
 
   it.each([
@@ -57,7 +57,7 @@ describe("safe auto-publish policy", () => {
     [{ ...safeCandidate, needsReview: true }, "candidate_requires_review"],
     [{ ...safeCandidate, reviewReasons: ["conflicting_numbers"] }, "candidate_review_reasons_present"],
     [{ ...safeCandidate, escalated: true }, "candidate_escalated"],
-    [{ ...safeCandidate, confidence: 0.89 }, "confidence_below_threshold"],
+    [{ ...safeCandidate, confidence: 0.79 }, "confidence_below_threshold"],
   ])("defers unsafe candidates deterministically", (candidate, reason) => {
     expect(candidatePolicyReason(candidate as AutoPublishCandidate, safeConfig)).toBe(reason);
   });

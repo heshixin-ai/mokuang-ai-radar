@@ -9,9 +9,9 @@ type BusyAction = { kind: "source" | "document" | "candidate" | "cluster" | "dra
 type ApiEnvelope<T> = { data: T; error?: never } | { data?: never; error: { message: string } };
 
 const statusLabels: Record<ReviewStatus, string> = {
-  pending: "待审核",
-  approved: "已批准",
-  rejected: "已驳回",
+  pending: "待处理",
+  approved: "已通过",
+  rejected: "已拦截",
 };
 
 const eventTypeLabels: Record<string, string> = {
@@ -142,7 +142,7 @@ export function ReviewDashboard() {
     setEdits((current) => ({ ...current, [event.id]: {
       titleZh: event.titleZh, deckZh: event.deckZh, whatChanged: event.whatChanged,
       before: event.before ?? "", after: event.after ?? "", whyItMatters: event.whyItMatters,
-      recommendedAction: event.recommendedAction ?? "", note: "人工复核并修订正式事件",
+      recommendedAction: event.recommendedAction ?? "", note: "管理员修订正式事件",
     } }));
   }
 
@@ -168,11 +168,11 @@ export function ReviewDashboard() {
 
       {dashboard && (
         <>
-          <section className="review-stats" aria-label="审核概览">
+          <section className="review-stats" aria-label="处理概览">
             <Metric label="待分析" value={dashboard.counts.pendingAnalysis} tone="amber" />
-            <Metric label="待审核" value={dashboard.counts.pendingReview} tone="red" />
-            <Metric label="已批准" value={dashboard.counts.approved} tone="green" />
-            <Metric label="已驳回" value={dashboard.counts.rejected} tone="muted" />
+            <Metric label="待处理" value={dashboard.counts.pendingReview} tone="red" />
+            <Metric label="已通过" value={dashboard.counts.approved} tone="green" />
+            <Metric label="已拦截" value={dashboard.counts.rejected} tone="muted" />
           </section>
 
           <section className="review-panel" aria-labelledby="sources-title">
@@ -249,8 +249,8 @@ export function ReviewDashboard() {
 
           <section className="review-panel" aria-labelledby="candidates-title">
             <div className="review-panel-heading candidate-heading">
-              <div><span>03</span><h2 id="candidates-title">候选审核</h2></div>
-              <div className="review-tabs" aria-label="按审核状态筛选">
+              <div><span>03</span><h2 id="candidates-title">候选处理</h2></div>
+              <div className="review-tabs" aria-label="按处理状态筛选">
                 {(Object.keys(statusLabels) as ReviewStatus[]).map((status) => (
                   <button type="button" key={status} aria-pressed={activeStatus === status} onClick={() => setActiveStatus(status)}>
                     {statusLabels[status]}
@@ -335,7 +335,7 @@ export function ReviewDashboard() {
                     </article>
                   ))}
                 </div>
-              ) : <Empty text="当前没有需要人工判断的聚类建议。" />}
+              ) : <Empty text="当前没有被自动门禁拦截的聚类冲突。" />}
             </section>
           )}
 
@@ -343,7 +343,7 @@ export function ReviewDashboard() {
             <section className="review-panel" aria-labelledby="events-title">
               <div className="review-panel-heading">
                 <div><span>05</span><h2 id="events-title">正式事件与发布门禁</h2></div>
-                <p>草稿必须通过结构、引用与置信度检查；安全策略外的发布和所有撤下仍需人工操作。</p>
+                <p>草稿通过结构、引用与最低置信度检查后由定时任务自动发布；后台仅保留异常处置与撤下入口。</p>
               </div>
               <div className="publication-stats" aria-label="发布概览">
                 <Metric label="草稿" value={eventDashboard.counts.draft} tone="amber" />
@@ -376,7 +376,7 @@ export function ReviewDashboard() {
                           ))}
                           <div><button type="button" onClick={() => setEditingId(null)}>取消</button><button className="approve-button" type="button" disabled={Boolean(busy)} onClick={() => void saveEdit(event)}>保存为新修订版</button></div>
                         </div>
-                      ) : event.status !== "published" && <button className="edit-event-button" type="button" disabled={Boolean(busy)} onClick={() => beginEdit(event)}>编辑并复核</button>}
+                      ) : event.status !== "published" && <button className="edit-event-button" type="button" disabled={Boolean(busy)} onClick={() => beginEdit(event)}>编辑事件</button>}
                       <div className="draft-content-grid">
                         <div><span>为什么重要</span><p>{event.whyItMatters}</p></div>
                         <div><span>建议行动</span><p>{event.recommendedAction ?? "暂无建议行动。"}</p></div>
@@ -396,7 +396,7 @@ export function ReviewDashboard() {
                           </>
                         ) : (
                           <button className="approve-button" type="button" disabled={Boolean(busy) || event.qualityStatus !== "ready"} onClick={() => void transitionEvent(event, "publish")}>
-                            {event.qualityStatus === "ready" ? "人工确认并发布" : "未通过门禁，不能发布"}
+                            {event.qualityStatus === "ready" ? "管理员立即发布" : "未通过门禁，不能发布"}
                           </button>
                         )}
                       </div>
