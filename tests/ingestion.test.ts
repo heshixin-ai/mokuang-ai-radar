@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readAiConfig } from "@/lib/ai/config";
 import { getReviewActorFromHeaders } from "@/lib/auth/review-access";
 import { fetchWithAllowlist, parseControlledHtmlSource, parseFeedXml } from "@/lib/ingestion/feed";
+import { readExternalRefreshSchedulerConfig } from "@/lib/ingestion/scheduler-config";
 import { runScheduledRefresh } from "@/lib/ingestion/scheduler";
 import {
   analyzeSourceDocument,
@@ -216,6 +217,39 @@ describe("persisted ingestion and review workflow", () => {
     expect([...repository.runs.values()].every((run) => run.triggerKind === "scheduled")).toBe(true);
     expect(repository.documents.filter((document) => document.status === "pending_analysis")).toHaveLength(1);
   });
+
+  it("caps external refresh work and records the automation actor", async () => {
+    const config = readExternalRefreshSchedulerConfig({
+      INGESTION_SOURCE_BATCH_SIZE: "20",
+      INGESTION_SOURCE_CONCURRENCY: "5",
+      INGESTION_ANALYSIS_BATCH_SIZE: "10",
+      EXTERNAL_REFRESH_SOURCE_BATCH_SIZE: "4",
+      EXTERNAL_REFRESH_SOURCE_CONCURRENCY: "2",
+      EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: "1",
+    });
+    expect(config).toMatchObject({
+      INGESTION_SOURCE_BATCH_SIZE: 4,
+      INGESTION_SOURCE_CONCURRENCY: 2,
+      INGESTION_ANALYSIS_BATCH_SIZE: 1,
+    });
+
+    const repository = new MemoryIngestionRepository();
+    await runScheduledRefresh({
+      repository,
+      aiConfig: readAiConfig({ AI_PROVIDER: "mock" }),
+      schedulerConfig: config,
+      actor: { id: "external", email: "external@mokuang.internal", displayName: "外部调度器" },
+      analysisEnabled: false,
+      clock: () => new Date("2026-08-26T09:00:00.000Z"),
+      idFactory: () => crypto.randomUUID(),
+      fetchFeed: async (source) => [makeSourceItem(source)],
+    });
+
+    expect([...repository.runs.values()]).toHaveLength(4);
+    expect([...repository.runs.values()].every((run) => (
+      run.triggerKind === "scheduled" && run.triggeredBy === "external@mokuang.internal"
+    ))).toBe(true);
+  });
 });
 
 describe("review authorization", () => {
@@ -290,12 +324,16 @@ class MemoryIngestionRepository implements IngestionRepository {
   documents: DocumentView[] = [];
   candidates: CandidateView[] = [];
   audit: string[] = [];
-  runs = new Map<string, { status: string; triggerKind: "manual" | "scheduled" }>();
+  runs = new Map<string, { status: string; triggerKind: "manual" | "scheduled"; triggeredBy: string }>();
   private sources: SourceDefinition[] = [];
 
   async syncSources(sources: SourceDefinition[]) { this.sources = sources; }
-  async createRun(input: { id: string; triggerKind: "manual" | "scheduled" }) {
-    this.runs.set(input.id, { status: "running", triggerKind: input.triggerKind });
+  async createRun(input: { id: string; triggerKind: "manual" | "scheduled"; triggeredBy: string }) {
+    this.runs.set(input.id, {
+      status: "running",
+      triggerKind: input.triggerKind,
+      triggeredBy: input.triggeredBy,
+    });
     return true;
   }
   async finishRun(input: { id: string }) {

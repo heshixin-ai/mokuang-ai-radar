@@ -99,6 +99,7 @@ Content-Type: application/json
 ```text
 GET  /api/v1/admin/dashboard
 POST /api/v1/admin/ingestion/runs
+POST /api/v1/admin/refresh
 POST /api/v1/admin/documents/:id/analyze
 POST /api/v1/admin/candidates/:id/review
 POST /api/v1/admin/candidates/:id/draft
@@ -116,7 +117,7 @@ GET  /api/v1/health
 GET  /api/v1/admin/operations
 ```
 
-采集请求只接受代码中登记的 `sourceId`，不能提交任意 URL。采集和分析拆成两步，避免一次请求批量调用模型；失败文档会保留为可重试状态。
+采集请求只接受代码中登记的 `sourceId`，不能提交任意 URL。外部刷新入口不接受来源 URL 或批量参数，只使用服务端配置的小批次运行采集、有限 AI 分析和当日日报；失败文档会保留为可重试状态。
 
 错误统一返回：
 

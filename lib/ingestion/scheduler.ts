@@ -32,11 +32,13 @@ export async function runScheduledRefresh(options: {
   repository: IngestionRepository;
   aiConfig: AiConfig;
   schedulerConfig: IngestionSchedulerConfig;
+  actor?: ReviewActor;
   clock?: () => Date;
   idFactory?: () => string;
   fetchFeed?: (source: SourceDefinition) => Promise<NormalizedFeedItem[]>;
   analysisEnabled?: boolean;
 }): Promise<ScheduledRefreshSummary> {
+  const actor = options.actor ?? schedulerActor;
   const clock = options.clock ?? (() => new Date());
   const scheduledAt = clock().toISOString();
   await options.repository.syncSources(curatedSources, scheduledAt);
@@ -50,7 +52,7 @@ export async function runScheduledRefresh(options: {
     options.schedulerConfig.INGESTION_SOURCE_CONCURRENCY,
     async (source) => {
       try {
-        const result = await runSourceIngestion(source.id, schedulerActor, {
+        const result = await runSourceIngestion(source.id, actor, {
           repository: options.repository,
           fetchFeed: options.fetchFeed,
           clock,
