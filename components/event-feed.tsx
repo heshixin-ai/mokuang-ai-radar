@@ -19,8 +19,6 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   timeZone: "Asia/Shanghai",
   month: "short",
   day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
 });
 
 export function EventFeed({ events, demoMode = false }: { events: IntelligenceEvent[]; demoMode?: boolean }) {
