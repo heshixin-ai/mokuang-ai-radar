@@ -76,7 +76,7 @@ AI_API_KEY=只填写在本地
 
 真实 Key 只能存放在未提交的 `.env.local` 或托管平台 Secret 中，不得进入前端、日志、响应或 Git。超时、重试、升级阈值和输出预算见 `.env.example`，未填写时使用安全默认值。
 
-Stage 05 起的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。Stage 17 的自动发布默认关闭；生产设为 `AUTO_PUBLISH_MODE=safe` 后，外部调度器每轮刷新后再调用一次保守自动发布，高风险内容继续由人工处理。
+Stage 05 起的调度容量由 `INGESTION_*` 配置控制。默认单轮可检查全部 20 个来源；`INGESTION_ANALYSIS_MODE=auto` 只有在 `AI_PROVIDER=deepseek` 时才自动分析，mock 环境只采集、不生成伪候选。Stage 17 的自动发布默认关闭；生产已设为 `AUTO_PUBLISH_MODE=safe`，外部调度器每轮刷新后再调用一次保守自动发布，高风险内容继续由人工处理。2026-08-26 已通过真实 GitHub `schedule` 事件验证从刷新到正式发布的完整链路。
 
 本地审核后台默认 `REVIEW_AUTH_MODE=local`。托管环境必须改为 `chatgpt`，并通过 `REVIEW_ADMIN_EMAILS` 填写逗号分隔的审核员邮箱；未在白名单中的登录用户只能看到拒绝访问页面。
 
