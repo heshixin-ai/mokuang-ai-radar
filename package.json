@@ -12,6 +12,7 @@
     "test": "vitest run --config vitest.config.ts",
     "test:render": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "scheduler:qstash:configure": "node scripts/configure-qstash.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply site-creator-d1 --local --persist-to .wrangler/state --config dist/server/wrangler.json"
   },

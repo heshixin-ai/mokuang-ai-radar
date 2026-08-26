@@ -14,7 +14,7 @@ Sites 生产环境的单次分析请求有明确执行期限。当前使用 `AI_
 
 不要只根据构建产物中的 `triggers.crons` 判断线上 Cron 已启用。当前 Sites 公测环境在 2026-08-26 的实测中没有执行 Worker scheduled handler；上线无人值守更新前，必须在目标平台观察到 scheduled 日志和 D1 `ingestion_runs.trigger_kind=scheduled` 记录。若 Sites 仍不支持后台调度，应使用外部调度器或迁移到明确支持 Cron Trigger 的托管平台。
 
-外部调度器先调用 `POST /api/v1/admin/refresh`，再调用 `POST /api/v1/admin/auto-publish`，不得循环调用单来源或单候选接口。生产使用私有 GitHub Actions 请求每 5 分钟触发一次，但 GitHub `schedule` 可能延迟，不能当作精确计时器。当前生产容量为每轮最多抓取 30 个到期来源、并发 5 个、分析 10 篇（最多 3 路并发），自动跳过超过 14 天仍未分析的旧内容，并优先处理中国来源；通过安全门禁时最多发布 5 条。采集批量由 `EXTERNAL_REFRESH_*` 限制，自动发布批量由 `AUTO_PUBLISH_*` 限制。私有 Sites 请求需要同时携带 Sites 访问绕过 Token 和审核自动化 Token，两者必须作为仓库 Actions Secret 保存。轮换任一 Token 后，应先手动运行工作流，再观察一个真实定时点；日志和文档不得记录 Token 明文。
+外部调度器调用统一入口 `POST /api/v1/admin/run`，由站点依次完成刷新、分析、日报和自动发布，不得循环调用单来源或单候选接口。生产计划使用 QStash 每 5 分钟触发一次；迁移验收前暂时保留 GitHub Actions 作为兜底，QStash 成功后 GitHub 只保留手动触发。当前生产容量为每轮最多抓取 30 个到期来源、并发 5 个、分析 10 篇（最多 3 路并发），自动跳过超过 14 天仍未分析的旧内容，并优先处理中国来源；通过安全门禁时最多发布 5 条。采集批量由 `EXTERNAL_REFRESH_*` 限制，自动发布批量由 `AUTO_PUBLISH_*` 限制。私有 Sites 请求需要同时携带 Sites 访问绕过 Token 和审核自动化 Token；QStash 请求头必须启用隐藏，日志和文档不得记录 Token 明文。
 
 本地和未验证环境的 `AUTO_PUBLISH_MODE` 默认必须为 `off`；生产经真实候选验证后设为 `safe`，最低置信度为 `0.80`。符合官方来源、事件类型、引用、结构、无冲突与置信度门禁的事件无需人工确认，由定时任务自动发布；未通过门禁的内容自动拦截。发生重大错误时立即切回 `off`，并由管理员撤下错误事件。
 
