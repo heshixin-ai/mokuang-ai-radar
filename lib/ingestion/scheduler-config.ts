@@ -13,7 +13,7 @@ export type IngestionSchedulerConfig = z.infer<typeof schedulerEnvironmentSchema
 const externalRefreshEnvironmentSchema = z.object({
   EXTERNAL_REFRESH_SOURCE_BATCH_SIZE: z.coerce.number().int().min(1).max(5).default(4),
   EXTERNAL_REFRESH_SOURCE_CONCURRENCY: z.coerce.number().int().min(1).max(3).default(2),
-  EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: z.coerce.number().int().min(0).max(1).default(1),
+  EXTERNAL_REFRESH_ANALYSIS_BATCH_SIZE: z.coerce.number().int().min(0).max(3).default(1),
 });
 
 export function readIngestionSchedulerConfig(
