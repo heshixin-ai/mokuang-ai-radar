@@ -25,12 +25,6 @@ const productValues = [
   },
 ];
 
-const workflow = [
-  { number: "01", title: "发现", text: "每 5 分钟检查来源，识别具有时间意义的新变化。" },
-  { number: "02", title: "判断", text: "完成去重、聚类与 AI 分析，同时保留不确定性。" },
-  { number: "03", title: "发布", text: "来源、证据、结构与引用通过自动门禁后直接发布，未通过的内容自动拦截。" },
-];
-
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
@@ -73,7 +67,6 @@ export default async function Home() {
               <p>工作台</p>
               <a className="active" href="#events"><span>今日情报</span><b>{events.length}</b></a>
               <Link href="/topics"><span>主题追踪</span><b>→</b></Link>
-              <Link href="/entities"><span>实体档案</span><b>→</b></Link>
               <div className="preview-source-stat">
                 <small>当前覆盖</small>
                 <strong>20</strong>
@@ -125,30 +118,10 @@ export default async function Home() {
 
       <EventFeed events={events} demoMode={demoMode} />
 
-      <section className="home-workflow" id="workflow" aria-labelledby="workflow-title">
-        <div className="workflow-intro">
-          <span className="home-kicker">HOW IT WORKS</span>
-          <h2 id="workflow-title">机器提高速度，<br /><span>规则守住边界。</span></h2>
-          <p>每条正式事件都要经过来源核验、结构化分析和自动质量门禁；未满足发布条件的内容不会进入公开页面。</p>
-        </div>
-        <div className="home-workflow-list">
-          {workflow.map((step) => (
-            <article key={step.number}>
-              <span>{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-final-cta" id="about">
+      <section className="home-subscribe-cta" aria-labelledby="subscribe-title">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
-        <h2><span>不用追完所有新闻。</span><span>重要变化，模况替你盯着。</span></h2>
-        <div>
-          <Link className="home-primary-action" href="/subscribe">订阅每日情报 <span aria-hidden="true">→</span></Link>
-          <Link href="/about">了解我们如何筛选</Link>
-        </div>
+        <h2 id="subscribe-title"><span>不用追完所有新闻。</span><span>重要变化，模况替你盯着。</span></h2>
+        <Link className="home-primary-action" href="/subscribe">订阅每日情报 <span aria-hidden="true">→</span></Link>
       </section>
 
       <footer className="site-footer home-footer">
@@ -157,7 +130,7 @@ export default async function Home() {
           <span><strong>模况</strong><small>MOKUANG</small></span>
         </div>
         <p>AI 产品与模型变更雷达</p>
-        <div className="footer-links"><Link href="/about">关于</Link><Link href="/corrections">纠错</Link><Link href="/privacy">隐私</Link><Link href="/terms">条款</Link><a href="#top">顶部 ↑</a></div>
+        <div className="footer-links"><Link href="/corrections">纠错</Link><Link href="/privacy">隐私</Link><Link href="/terms">条款</Link><a href="#top">顶部 ↑</a></div>
       </footer>
     </main>
   );
