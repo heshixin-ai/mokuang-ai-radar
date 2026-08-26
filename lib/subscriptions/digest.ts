@@ -1,4 +1,5 @@
 import type { IntelligenceEvent } from "@/lib/domain/event";
+import { getEventSourcePublishedAt } from "@/lib/events/publication-time";
 import { D1EventWorkflowRepository } from "@/lib/repository/event-workflow";
 import { D1SubscriptionRepository } from "@/lib/repository/subscriptions";
 import { deliverEmail } from "@/lib/subscriptions/email";
@@ -19,8 +20,10 @@ export async function runDailyDigest(options: {
   const runId = await repository.claimDigest(date, now.toISOString());
   if (!runId) return { claimed: false, subscribers: 0, sent: 0, skipped: 0, failed: 0 };
   const subscribers = await repository.listActiveSubscribers();
-  const events = (await new D1EventWorkflowRepository(options.database).listPublished())
-    .filter((event) => shanghaiDate(new Date(event.publishedAt)) === date);
+  const events = selectDigestEventsForDate(
+    await new D1EventWorkflowRepository(options.database).listPublished(),
+    date,
+  );
   let sent = 0; let skipped = 0; let failed = 0;
   for (const subscriber of subscribers) {
     const selected = events.filter((event) => subscriber.topics.includes(event.eventType));
@@ -47,6 +50,13 @@ export async function runDailyDigest(options: {
 function renderDigest(date: string, events: IntelligenceEvent[], unsubscribeUrl: string, siteUrl: string): string {
   const items = events.map((event) => `<article style="padding:20px 0;border-top:1px solid #d8d4ca"><h2 style="font-size:20px"><a href="${escapeHtml(`${siteUrl.replace(/\/$/, "")}/events/${event.id}`)}">${escapeHtml(event.titleZh)}</a></h2><p>${escapeHtml(event.deckZh)}</p><p><strong>建议行动：</strong>${escapeHtml(event.recommendedAction ?? "继续观察。")}</p></article>`).join("");
   return emailLayout(`${date} AI 变化日报`, `${items}<p style="margin-top:32px"><a href="${escapeHtml(unsubscribeUrl)}">退订日报</a></p>`);
+}
+
+export function selectDigestEventsForDate(events: IntelligenceEvent[], date: string): IntelligenceEvent[] {
+  return events.filter((event) => {
+    const sourcePublishedAt = getEventSourcePublishedAt(event);
+    return sourcePublishedAt !== null && shanghaiDate(new Date(sourcePublishedAt)) === date;
+  });
 }
 
 function shanghaiDate(date: Date): string {
