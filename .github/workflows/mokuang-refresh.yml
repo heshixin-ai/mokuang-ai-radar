@@ -1,0 +1,33 @@
+name: 模况自动刷新
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mokuang-production-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout scheduler
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Refresh production sources
+        env:
+          MOKUANG_SITE_URL: ${{ secrets.MOKUANG_SITE_URL }}
+          REVIEW_AUTOMATION_TOKEN: ${{ secrets.REVIEW_AUTOMATION_TOKEN }}
+          SITES_BYPASS_TOKEN: ${{ secrets.SITES_BYPASS_TOKEN }}
+        run: node scripts/run-external-refresh.mjs
