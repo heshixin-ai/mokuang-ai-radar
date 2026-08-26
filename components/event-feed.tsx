@@ -4,15 +4,28 @@ import Link from "@/components/site-link";
 import { useEffect, useMemo, useState } from "react";
 import type { EventType, IntelligenceEvent } from "@/lib/domain/event";
 import { eventStatusLabels, eventTypeLabels, roleLabels } from "@/lib/domain/labels";
+import {
+  EVENT_PAGE_SIZE,
+  filterEventsByTime,
+  filterEventsByType,
+  type EventTimeRange,
+} from "@/lib/events/feed-filter";
 import { EvidenceBadge } from "./evidence-badge";
 
 const filters: Array<{ value: "all" | EventType; label: string }> = [
-  { value: "all", label: "全部" },
+  { value: "all", label: "全部类型" },
   { value: "model_release", label: "模型" },
   { value: "api_change", label: "API" },
   { value: "pricing", label: "价格" },
   { value: "policy", label: "政策" },
   { value: "research", label: "研究" },
+];
+
+const timeRanges: Array<{ value: EventTimeRange; label: string }> = [
+  { value: "today", label: "今天" },
+  { value: "7d", label: "近 7 天" },
+  { value: "30d", label: "近 30 天" },
+  { value: "all", label: "全部历史" },
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -21,8 +34,18 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   day: "numeric",
 });
 
-export function EventFeed({ events, demoMode = false }: { events: IntelligenceEvent[]; demoMode?: boolean }) {
+export function EventFeed({
+  events,
+  demoMode = false,
+  referenceTime,
+}: {
+  events: IntelligenceEvent[];
+  demoMode?: boolean;
+  referenceTime: string;
+}) {
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
+  const [activeTimeRange, setActiveTimeRange] = useState<EventTimeRange>("7d");
+  const [visibleCount, setVisibleCount] = useState(EVENT_PAGE_SIZE);
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
     let hashTimeout = 0;
@@ -45,46 +68,80 @@ export function EventFeed({ events, demoMode = false }: { events: IntelligenceEv
       window.clearTimeout(hashTimeout);
     };
   }, []);
-  const visibleEvents = useMemo(
-    () => events.filter((event) => activeFilter === "all" || event.eventType === activeFilter),
-    [activeFilter, events],
+  const eventsInRange = useMemo(
+    () => filterEventsByTime(events, activeTimeRange, referenceTime),
+    [activeTimeRange, events, referenceTime],
   );
+  const filteredEvents = useMemo(
+    () => filterEventsByType(eventsInRange, activeFilter),
+    [activeFilter, eventsInRange],
+  );
+  const visibleEvents = filteredEvents.slice(0, visibleCount);
   const filterCounts = useMemo(
     () => Object.fromEntries(filters.map((filter) => [
       filter.value,
-      filter.value === "all" ? events.length : events.filter((event) => event.eventType === filter.value).length,
+      filter.value === "all" ? eventsInRange.length : eventsInRange.filter((event) => event.eventType === filter.value).length,
     ])) as Record<"all" | EventType, number>,
-    [events],
+    [eventsInRange],
   );
+  const remainingCount = Math.max(filteredEvents.length - visibleEvents.length, 0);
+
+  function changeTimeRange(range: EventTimeRange) {
+    setActiveTimeRange(range);
+    setVisibleCount(EVENT_PAGE_SIZE);
+  }
+
+  function changeTypeFilter(type: "all" | EventType) {
+    setActiveFilter(type);
+    setVisibleCount(EVENT_PAGE_SIZE);
+  }
 
   return (
     <section className="feed" id="events" aria-labelledby="feed-title" data-hydrated={isHydrated}>
       <div className="feed-toolbar">
         <div>
-          <span className="section-label">TODAY&apos;S SIGNALS</span>
+          <span className="section-label">AI CHANGE FEED</span>
           <h2 id="feed-title">值得你处理的变化</h2>
-          <p className="feed-count" aria-live="polite">当前显示 {visibleEvents.length} 条{demoMode ? "演示" : "已发布"}事件</p>
+          <p className="feed-count" aria-live="polite">
+            当前显示 {visibleEvents.length} / {filteredEvents.length} 条{demoMode ? "演示" : "已发布"}事件
+          </p>
         </div>
-        <div className="filter-row" aria-label="按事件类型筛选">
-          {filters.map((filter) => {
-            const count = filterCounts[filter.value];
-            const unavailable = filter.value !== "all" && count === 0;
+        <div className="feed-controls">
+          <label className="time-filter">
+            <span>时间</span>
+            <select
+              value={activeTimeRange}
+              onChange={(event) => changeTimeRange(event.target.value as EventTimeRange)}
+              disabled={!isHydrated}
+              aria-label="按发布时间筛选事件"
+            >
+              {timeRanges.map((range) => <option value={range.value} key={range.value}>{range.label}</option>)}
+            </select>
+          </label>
+          <div className="type-filter-group">
+            <span>类型</span>
+            <div className="filter-row" aria-label="按事件类型筛选">
+              {filters.map((filter) => {
+                const count = filterCounts[filter.value];
+                const unavailable = filter.value !== "all" && count === 0;
 
-            return (
-              <button
-                className={`filter ${activeFilter === filter.value ? "active" : ""}`}
-                key={filter.value}
-                onClick={() => setActiveFilter(filter.value)}
-                type="button"
-                aria-pressed={activeFilter === filter.value}
-                aria-label={`${filter.label}，${count} 条事件`}
-                disabled={!isHydrated || unavailable}
-                title={unavailable ? "暂无这类事件" : undefined}
-              >
-                {filter.label}<small aria-hidden="true">{count}</small>
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    className={`filter ${activeFilter === filter.value ? "active" : ""}`}
+                    key={filter.value}
+                    onClick={() => changeTypeFilter(filter.value)}
+                    type="button"
+                    aria-pressed={activeFilter === filter.value}
+                    aria-label={`${filter.label}，${count} 条事件`}
+                    disabled={!isHydrated || unavailable}
+                    title={unavailable ? "当前时间范围内暂无这类事件" : undefined}
+                  >
+                    {filter.label}<small aria-hidden="true">{count}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -118,11 +175,20 @@ export function EventFeed({ events, demoMode = false }: { events: IntelligenceEv
               </Link>
             </article>
           ))}
+          {remainingCount > 0 && (
+            <div className="feed-load-more">
+              <button type="button" onClick={() => setVisibleCount((count) => count + EVENT_PAGE_SIZE)}>
+                加载更多
+                <small>再显示 {Math.min(EVENT_PAGE_SIZE, remainingCount)} 条</small>
+              </button>
+              <span>还有 {remainingCount} 条事件</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="empty-state">
-          <strong>这个主题暂时没有事件</strong>
-          <p>换一个筛选项，或等待新的正式事件通过发布门禁。</p>
+          <strong>当前筛选范围内没有事件</strong>
+          <p>可以扩大时间范围、切换类型，或等待新的正式事件发布。</p>
         </div>
       )}
     </section>

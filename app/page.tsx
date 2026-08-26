@@ -32,6 +32,7 @@ export default async function Home() {
   const events = await listEvents();
   const demoMode = events.every(isDemoEvent);
   const previewEvents = events.slice(0, 3);
+  const feedReferenceTime = new Date().toISOString();
 
   return (
     <main className="home-v2">
@@ -117,7 +118,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <EventFeed events={events} demoMode={demoMode} />
+      <EventFeed events={events} demoMode={demoMode} referenceTime={feedReferenceTime} />
 
       <section className="home-subscribe-cta" aria-labelledby="subscribe-title">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
