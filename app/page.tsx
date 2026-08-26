@@ -118,7 +118,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <EventFeed events={events} demoMode={demoMode} referenceTime={feedReferenceTime} />
+      <EventFeed events={events} referenceTime={feedReferenceTime} />
 
       <section className="home-subscribe-cta" aria-labelledby="subscribe-title">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>

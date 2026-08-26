@@ -36,11 +36,9 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
 
 export function EventFeed({
   events,
-  demoMode = false,
   referenceTime,
 }: {
   events: IntelligenceEvent[];
-  demoMode?: boolean;
   referenceTime: string;
 }) {
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
@@ -102,9 +100,6 @@ export function EventFeed({
         <div>
           <span className="section-label">AI CHANGE FEED</span>
           <h2 id="feed-title">值得你处理的变化</h2>
-          <p className="feed-count" aria-live="polite">
-            当前显示 {visibleEvents.length} / {filteredEvents.length} 条{demoMode ? "演示" : "已发布"}事件
-          </p>
         </div>
         <div className="feed-controls">
           <label className="time-filter">
