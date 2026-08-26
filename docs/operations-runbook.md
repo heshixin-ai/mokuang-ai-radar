@@ -14,6 +14,8 @@ Sites 生产环境的单次审核请求有明确执行期限。当前使用 `AI_
 
 不要只根据构建产物中的 `triggers.crons` 判断线上 Cron 已启用。当前 Sites 公测环境在 2026-08-26 的实测中没有执行 Worker scheduled handler；上线无人值守更新前，必须在目标平台观察到 scheduled 日志和 D1 `ingestion_runs.trigger_kind=scheduled` 记录。若 Sites 仍不支持后台调度，应使用外部调度器或迁移到明确支持 Cron Trigger 的托管平台。
 
+外部调度器统一调用 `POST /api/v1/admin/refresh`，不得循环调用单来源接口。建议每 5 分钟触发一次；单次批量由 `EXTERNAL_REFRESH_*` 环境变量限制。私有 Sites 请求需要同时携带 Sites 访问绕过 Token 和审核自动化 Token，两者必须作为调度平台 Secret 保存。轮换任一 Token 后，应先 TestInvoke，再观察一个真实定时点；日志和文档不得记录 Token 明文。
+
 ## 每日检查
 
 - `/review/operations` 是否出现连续 3 次来源失败、邮件失败或观测不足。
