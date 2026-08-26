@@ -162,6 +162,7 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - Stage 08 文档：`docs/stages/stage-08-reading-and-revisions.md`
 - Stage 09 文档：`docs/stages/stage-09-daily-digest.md`
 - Stage 10 文档：`docs/stages/stage-10-launch-readiness.md`
+- Stage 15 文档：`docs/stages/stage-15-production-data-validation.md`
 - 上线运行手册：`docs/operations-runbook.md`
 - `stage/00-foundation`：项目基线与技术适配
 - `stage/01-core-intelligence`：核心情报纵向切片
@@ -174,5 +175,6 @@ curl 'http://localhost:3001/cdn-cgi/handler/scheduled?format=json'
 - `stage/08-reading-and-revisions`：事件人工修订、版本审计与主题/实体时间线
 - `stage/09-daily-digest`：双重确认订阅、主题偏好、退订与幂等日报
 - `stage/10-launch-readiness`：质量回归、运行监控、合规页面与部署准备
+- `stage/15-production-data-validation`：生产模型、真实来源、审核发布闭环与线上浏览器验收
 
 每个阶段完成验证并提交后保留分支；产品验收通过后再合入 `main` 并开始下一阶段。

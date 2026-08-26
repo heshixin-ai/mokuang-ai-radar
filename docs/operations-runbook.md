@@ -8,6 +8,10 @@
 4. 将 AI、Resend Key 保存为托管 Secret，不写入仓库或前端；设置已验证域名的 `EMAIL_FROM` 和 HTTPS `PUBLIC_SITE_URL`。
 5. 用测试订阅走完确认、日报 outbox/发送和退订；用一条草稿走完修订、发布、撤下和重新发布。
 
+Sites 生产环境的单次审核请求有明确执行期限。当前使用 `AI_TIMEOUT_MS=12000` 与 `AI_MAX_RETRIES=0`：高能力模型超时后立即回退，失败内容保留给人工重试，避免长重试占满整个请求窗口。
+
+如需受控服务端自动化审核，可配置至少 32 字符的 `REVIEW_AUTOMATION_TOKEN` 托管 Secret，并通过标准 Bearer 头调用审核 API。该身份只用于可审计的内部操作，不能替代浏览器 ChatGPT 登录和 `REVIEW_ADMIN_EMAILS` 白名单。
+
 ## 每日检查
 
 - `/review/operations` 是否出现连续 3 次来源失败、邮件失败或观测不足。
