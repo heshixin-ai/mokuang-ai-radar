@@ -236,6 +236,28 @@ describe("review authorization", () => {
       REVIEW_ADMIN_EMAILS: "someone@example.com",
     })).toEqual({ ok: false, reason: "forbidden" });
   });
+
+  it("accepts only an exact, sufficiently long automation bearer token", () => {
+    const token = "stage-15-automation-token-with-32-chars";
+    const valid = new Headers({ authorization: `Bearer ${token}` });
+    const invalid = new Headers({ authorization: "Bearer wrong-token" });
+
+    expect(getReviewActorFromHeaders(valid, {
+      NODE_ENV: "production",
+      REVIEW_AUTOMATION_TOKEN: token,
+    })).toMatchObject({
+      ok: true,
+      actor: { id: "review-automation", email: "automation@mokuang.internal" },
+    });
+    expect(getReviewActorFromHeaders(invalid, {
+      NODE_ENV: "production",
+      REVIEW_AUTOMATION_TOKEN: token,
+    })).toEqual({ ok: false, reason: "unauthenticated" });
+    expect(getReviewActorFromHeaders(valid, {
+      NODE_ENV: "production",
+      REVIEW_AUTOMATION_TOKEN: "short-token",
+    })).toEqual({ ok: false, reason: "unauthenticated" });
+  });
 });
 
 function makeItem(): NormalizedFeedItem {

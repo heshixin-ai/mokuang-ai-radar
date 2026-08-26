@@ -8,6 +8,17 @@ export function getReviewActorFromHeaders(
   requestHeaders: Headers,
   environment: Record<string, string | undefined> = process.env,
 ): ReviewAccessResult {
+  if (hasValidAutomationToken(requestHeaders, environment)) {
+    return {
+      ok: true,
+      actor: {
+        id: "review-automation",
+        email: "automation@mokuang.internal",
+        displayName: "模况受控自动化",
+      },
+    };
+  }
+
   if (isLocalReviewMode(environment)) {
     return {
       ok: true,
@@ -20,6 +31,25 @@ export function getReviewActorFromHeaders(
   if (!id || !email) return { ok: false, reason: "unauthenticated" };
   if (!reviewAllowlist(environment).has(email)) return { ok: false, reason: "forbidden" };
   return { ok: true, actor: { id, email, displayName: email } };
+}
+
+function hasValidAutomationToken(
+  requestHeaders: Headers,
+  environment: Record<string, string | undefined>,
+): boolean {
+  const expected = environment.REVIEW_AUTOMATION_TOKEN?.trim();
+  const authorization = requestHeaders.get("authorization");
+  if (!expected || expected.length < 32 || !authorization?.startsWith("Bearer ")) return false;
+  return constantTimeEqual(authorization.slice(7), expected);
+}
+
+function constantTimeEqual(received: string, expected: string): boolean {
+  if (received.length !== expected.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    difference |= received.charCodeAt(index) ^ expected.charCodeAt(index);
+  }
+  return difference === 0;
 }
 
 export function isLocalReviewMode(environment: Record<string, string | undefined>): boolean {
