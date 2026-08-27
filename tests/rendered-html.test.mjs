@@ -94,6 +94,6 @@ test("审核后台需要授权身份，并明确安全自动发布边界", async
   const html = await response.text();
   assert.match(html, /合格事件自动发布/);
   assert.match(html, /异常内容自动拦截/);
-  assert.match(html, /置信度不低于 80%/);
+  assert.match(html, /置信度不低于 70%/);
   assert.match(html, /采集与发布后台｜模况/);
 });

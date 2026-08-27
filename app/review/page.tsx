@@ -22,7 +22,7 @@ export default async function ReviewPage() {
           <div>
             <span className="section-label">STAGE 10 · LAUNCH READINESS</span>
             <h1>合格事件自动发布，<br />异常内容自动拦截。</h1>
-            <p>官方候选在聚类无歧义、引用完整、置信度不低于 80% 且双重质量门禁通过后自动发布；未通过的内容不会进入公开页面。</p>
+            <p>可信一手来源的低风险候选，在聚类无歧义、引用完整且置信度不低于 70% 时自动发布；证据不足及政策、融资等高风险内容仍会拦截。</p>
             <Link className="operations-link" href="/review/operations">查看运行与质量监控 →</Link>
           </div>
           <div className="review-actor">

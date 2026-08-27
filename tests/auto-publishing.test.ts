@@ -18,7 +18,7 @@ const actor: ReviewActor = {
 
 const safeConfig = readAutoPublishConfig({
   AUTO_PUBLISH_MODE: "safe",
-  AUTO_PUBLISH_MIN_CONFIDENCE: "0.8",
+  AUTO_PUBLISH_MIN_CONFIDENCE: "0.7",
   AUTO_PUBLISH_BATCH_SIZE: "1",
 });
 
@@ -39,39 +39,33 @@ describe("safe auto-publish policy", () => {
   it("is fail-closed by default and accepts only an explicit safe mode", () => {
     expect(readAutoPublishConfig({})).toMatchObject({
       AUTO_PUBLISH_MODE: "off",
-      AUTO_PUBLISH_MIN_CONFIDENCE: 0.8,
+      AUTO_PUBLISH_MIN_CONFIDENCE: 0.7,
       AUTO_PUBLISH_BATCH_SIZE: 1,
     });
     expect(safeConfig.AUTO_PUBLISH_MODE).toBe("safe");
     expect(() => readAutoPublishConfig({ AUTO_PUBLISH_MIN_CONFIDENCE: "0.5" })).toThrow();
   });
 
-  it("allows an official production candidate at the configured 0.8 threshold", () => {
-    expect(candidatePolicyReason({ ...safeCandidate, confidence: 0.8 }, safeConfig)).toBeNull();
+  it("allows a trusted low-risk candidate at the configured 0.7 threshold", () => {
+    expect(candidatePolicyReason({ ...safeCandidate, confidence: 0.7 }, safeConfig)).toBeNull();
     expect(candidatePolicyReason({ ...safeCandidate, eventType: "research", sourceType: "research" }, safeConfig)).toBeNull();
     expect(candidatePolicyReason({
       ...safeCandidate,
-      eventType: "policy",
       needsReview: true,
-      reviewReasons: ["high_risk_event_type"],
+      reviewReasons: ["draft_quality_blocked"],
       escalated: true,
     }, safeConfig)).toBeNull();
-    expect(candidatePolicyReason({
-      ...safeCandidate,
-      eventType: "policy",
-      needsReview: true,
-      escalated: true,
-    }, safeConfig)).toBe("candidate_requires_review");
+    expect(candidatePolicyReason({ ...safeCandidate, escalated: true }, safeConfig)).toBeNull();
   });
 
   it.each([
     [{ ...safeCandidate, provider: "mock" }, "provider_not_production"],
     [{ ...safeCandidate, sourceType: "media" as const }, "source_not_official"],
     [{ ...safeCandidate, eventType: "pricing" as const }, "event_type_requires_review"],
+    [{ ...safeCandidate, eventType: "policy" as const }, "event_type_requires_review"],
     [{ ...safeCandidate, needsReview: true }, "candidate_requires_review"],
     [{ ...safeCandidate, reviewReasons: ["conflicting_numbers"] }, "candidate_review_reasons_present"],
-    [{ ...safeCandidate, escalated: true }, "candidate_escalated"],
-    [{ ...safeCandidate, confidence: 0.79 }, "confidence_below_threshold"],
+    [{ ...safeCandidate, confidence: 0.69 }, "confidence_below_threshold"],
   ])("defers unsafe candidates deterministically", (candidate, reason) => {
     expect(candidatePolicyReason(candidate as AutoPublishCandidate, safeConfig)).toBe(reason);
   });
@@ -80,6 +74,13 @@ describe("safe auto-publish policy", () => {
     expect(draftPolicyReason(makeDraft(), safeConfig)).toBeNull();
     expect(draftPolicyReason(makeDraft({ qualityStatus: "blocked", qualityIssues: ["citations_missing"] }), safeConfig))
       .toBe("draft_quality_blocked");
+    expect(draftPolicyReason(makeDraft({
+      qualityStatus: "blocked",
+      qualityIssues: ["confidence_below_0_8", "impact_model_requested_review"],
+      confidence: 0.75,
+      needsReview: true,
+      reviewReasons: ["model_uncertain"],
+    }), safeConfig)).toBeNull();
     expect(draftPolicyReason(makeDraft({ needsReview: true }), safeConfig)).toBe("draft_requires_review");
   });
 });
@@ -102,7 +103,7 @@ describe("safe auto-publish orchestration", () => {
       "approve:cand_safe:automation@mokuang.internal",
       "cluster:cand_safe",
       "draft:cand_safe:automation@mokuang.internal",
-      "publish:evt_safe:automation@mokuang.internal",
+      "publish:evt_safe:automation@mokuang.internal:ready",
     ]);
     expect(summary).toMatchObject({ scanned: 2, eligible: 1, attempted: 1, published: 1, deferred: 1, failed: 0 });
     expect(summary.outcomes[0]).toMatchObject({ status: "published", eventId: "evt_safe" });
@@ -151,7 +152,7 @@ describe("safe auto-publish orchestration", () => {
     const operations = successfulOperations(calls);
     operations.createDraft = async (candidateId, reviewActor) => {
       calls.push(`draft:${candidateId}:${reviewActor.email}`);
-      return makeDraft({ qualityStatus: "blocked", qualityIssues: ["confidence_below_0_8"] });
+      return makeDraft({ qualityStatus: "blocked", qualityIssues: ["citations_missing"] });
     };
 
     const summary = await runSafeAutoPublishingBatch({
@@ -164,6 +165,31 @@ describe("safe auto-publish orchestration", () => {
     expect(calls.some((call) => call.startsWith("publish:"))).toBe(false);
     expect(calls).toContain("review:cand_safe:draft_quality_blocked");
     expect(summary.outcomes[0]).toMatchObject({ status: "deferred", reason: "draft_quality_blocked" });
+  });
+
+  it("publishes a trusted low-risk draft when only legacy soft quality flags remain", async () => {
+    const calls: string[] = [];
+    const operations = successfulOperations(calls);
+    operations.createDraft = async (candidateId, reviewActor) => {
+      calls.push(`draft:${candidateId}:${reviewActor.email}`);
+      return makeDraft({
+        qualityStatus: "blocked",
+        qualityIssues: ["confidence_below_0_8", "draft_model_requested_review"],
+        confidence: 0.75,
+        needsReview: true,
+        reviewReasons: ["wording_uncertain"],
+      });
+    };
+
+    const summary = await runSafeAutoPublishingBatch({
+      repository: memoryRepository([{ ...safeCandidate, confidence: 0.75 }], calls),
+      operations,
+      config: safeConfig,
+      actor,
+    });
+
+    expect(calls).toContain("publish:evt_safe:automation@mokuang.internal:soft");
+    expect(summary).toMatchObject({ published: 1, deferred: 0, failed: 0 });
   });
 
   it("moves a transient workflow failure to the back of the queue", async () => {
@@ -222,8 +248,8 @@ function successfulOperations(calls: string[]): AutoPublishingOperations {
       calls.push(`draft:${candidateId}:${reviewActor.email}`);
       return makeDraft();
     },
-    async publishEvent(eventId, _note, reviewActor) {
-      calls.push(`publish:${eventId}:${reviewActor.email}`);
+    async publishEvent(eventId, _note, reviewActor, allowSoftQuality) {
+      calls.push(`publish:${eventId}:${reviewActor.email}:${allowSoftQuality ? "soft" : "ready"}`);
       return makeDraft({ status: "published", publishedAt: "2026-08-26T10:01:00.000Z", publishedBy: reviewActor.email });
     },
   };

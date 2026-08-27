@@ -34,7 +34,7 @@ export class D1AutoPublishingRepository implements AutoPublishingRepository {
       WHERE c.review_status IN ('pending', 'approved')
         AND (
           e.id IS NULL
-          OR (e.status = 'draft' AND e.quality_status = 'ready')
+          OR e.status = 'draft'
         )
         AND (
           cc.id IS NULL

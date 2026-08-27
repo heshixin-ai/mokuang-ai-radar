@@ -212,6 +212,7 @@ export class D1EventWorkflowRepository {
     note: string | null;
     now: string;
     actionId: string;
+    allowSoftQuality?: boolean;
   }): Promise<EventAdminView | null> {
     const targetStatus = input.action === "publish" ? "published" : "withdrawn";
     const allowedStatus = input.action === "publish" ? ["draft", "withdrawn"] : ["published"];
@@ -227,11 +228,16 @@ export class D1EventWorkflowRepository {
       qualityStatus: current.quality_status,
       qualityIssues: parseStringArray(current.quality_issues_json),
     });
-    const qualityClause = input.action === "publish" ? "AND quality_status = 'ready'" : "";
+    const allowsSoftQuality = input.action === "publish" && input.allowSoftQuality === true;
+    const qualityClause = input.action === "publish" && !allowsSoftQuality ? "AND quality_status = 'ready'" : "";
     const result = await this.database.prepare(`
       UPDATE events
       SET status = ?, published_at = CASE WHEN ? = 'published' THEN ? ELSE published_at END,
         published_by = CASE WHEN ? = 'published' THEN ? ELSE published_by END,
+        quality_status = CASE WHEN ? = 1 THEN 'ready' ELSE quality_status END,
+        quality_issues_json = CASE WHEN ? = 1 THEN '[]' ELSE quality_issues_json END,
+        needs_review = CASE WHEN ? = 1 THEN 0 ELSE needs_review END,
+        review_reasons_json = CASE WHEN ? = 1 THEN '[]' ELSE review_reasons_json END,
         updated_at = ?
       WHERE id = ? AND status IN (${placeholders}) ${qualityClause}
     `).bind(
@@ -240,6 +246,10 @@ export class D1EventWorkflowRepository {
       input.now,
       targetStatus,
       input.actor.email,
+      allowsSoftQuality ? 1 : 0,
+      allowsSoftQuality ? 1 : 0,
+      allowsSoftQuality ? 1 : 0,
+      allowsSoftQuality ? 1 : 0,
       input.now,
       input.eventId,
       ...allowedStatus,
@@ -458,7 +468,7 @@ export class D1EventWorkflowRepository {
 function editedQualityIssues(event: EventAdminView, edit: EventEditInput): string[] {
   const issues: string[] = [];
   if (event.citations.length === 0) issues.push("citations_missing");
-  if (event.confidence < 0.8) issues.push("confidence_below_0_8");
+  if (event.confidence < 0.7) issues.push("confidence_below_0_7");
   if (event.evidenceLevel === "lead_only") issues.push("lead_only_cannot_publish");
   if (!edit.recommendedAction && ["pricing", "policy"].includes(event.eventType)) issues.push("recommended_action_missing");
   return issues;
