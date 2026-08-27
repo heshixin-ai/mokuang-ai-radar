@@ -113,12 +113,14 @@ const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
 export function EventFeed({
   events,
   referenceTime,
+  initialTimeRange = "7d",
 }: {
   events: IntelligenceEvent[];
   referenceTime: string;
+  initialTimeRange?: EventTimeRange;
 }) {
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
-  const [activeTimeRange, setActiveTimeRange] = useState<EventTimeRange>("7d");
+  const [activeTimeRange, setActiveTimeRange] = useState<EventTimeRange>(initialTimeRange);
   const [visibleCount, setVisibleCount] = useState(EVENT_PAGE_SIZE);
   const [isHydrated, setIsHydrated] = useState(false);
   const [openMenu, setOpenMenu] = useState<"type" | "time" | null>(null);
@@ -253,7 +255,7 @@ export function EventFeed({
                       ))}
                     </div>
                     <span className="detail-link">
-                      查看完整详情 <span aria-hidden="true">↗</span>
+                      查看完整详情
                     </span>
                   </div>
                 </div>
