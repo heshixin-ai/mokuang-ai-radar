@@ -1,8 +1,10 @@
 import { EventFeed } from "@/components/event-feed";
+import { RadarPreview } from "@/components/radar-preview";
 import { SiteHeader } from "@/components/site-header";
 import { eventTypeLabels } from "@/lib/domain/labels";
 import { curatedSources } from "@/lib/ingestion/sources";
 import { isDemoEvent, listEvents } from "@/lib/repository/events";
+import { listTopicTimelines } from "@/lib/repository/taxonomy";
 import Link from "@/components/site-link";
 
 const productValues = [
@@ -32,6 +34,21 @@ export default async function Home() {
   const events = await listEvents();
   const demoMode = events.every(isDemoEvent);
   const previewEvents = events.slice(0, 3);
+  let previewTopics: Array<{ slug: string; label: string; count: number }> = [];
+  try {
+    previewTopics = (await listTopicTimelines()).slice(0, 3);
+  } catch {
+    // Demo and render-test environments may not expose the production D1 binding.
+  }
+  if (previewTopics.length === 0) {
+    const topicCounts = new Map<string, number>();
+    for (const event of events) topicCounts.set(event.eventType, (topicCounts.get(event.eventType) ?? 0) + 1);
+    previewTopics = [...topicCounts.entries()].map(([slug, count]) => ({
+      slug,
+      count,
+      label: eventTypeLabels[slug as keyof typeof eventTypeLabels],
+    })).slice(0, 3);
+  }
   const feedReferenceTime = new Date().toISOString();
 
   return (
@@ -59,47 +76,16 @@ export default async function Home() {
       </section>
 
       <section className="product-proof" aria-label="模况产品界面预览">
-        <div className="radar-preview">
-          <div className="preview-topbar">
-            <div><span className="preview-logo">模</span><strong>模况情报台</strong></div>
-            <span>LIVE RADAR</span>
-          </div>
-          <div className="preview-shell">
-            <aside className="preview-sidebar">
-              <p>工作台</p>
-              <a className="active" href="#events"><span>今日情报</span><b>{events.length}</b></a>
-              <Link href="/topics"><span>主题追踪</span><b>→</b></Link>
-              <div className="preview-source-stat">
-                <small>当前覆盖</small>
-                <strong>{curatedSources.length}</strong>
-                <span>个受控来源</span>
-              </div>
-            </aside>
-            <div className="preview-main">
-              <header>
-                <div>
-                  <span>DAILY BRIEFING</span>
-                  <h2>今天值得处理的变化</h2>
-                </div>
-              </header>
-              <div className="preview-events">
-                {previewEvents.length > 0 ? previewEvents.map((event, index) => (
-                  <Link className="preview-event" href={`/events/${event.id}`} key={event.id}>
-                    <span className="preview-event-index">{String(index + 1).padStart(2, "0")}</span>
-                    <div>
-                      <small>{eventTypeLabels[event.eventType]}</small>
-                      <h3>{event.titleZh}</h3>
-                      <p>{event.deckZh}</p>
-                    </div>
-                    <span className="preview-arrow" aria-hidden="true">↗</span>
-                  </Link>
-                )) : (
-                  <div className="preview-empty">新的正式事件正在处理中。</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <RadarPreview
+          events={previewEvents.map((event) => ({
+            id: event.id,
+            typeLabel: eventTypeLabels[event.eventType],
+            title: event.titleZh,
+            deck: event.deckZh,
+          }))}
+          topics={previewTopics}
+          sourceCount={curatedSources.length}
+        />
       </section>
 
       <section className="home-values" aria-labelledby="value-title">

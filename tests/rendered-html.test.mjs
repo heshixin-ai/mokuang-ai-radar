@@ -25,6 +25,9 @@ test("首页呈现模况产品信息而非 starter", async () => {
   assert.match(html, /发生的变化/);
   assert.match(html, /演示数据|安全门禁/);
   assert.match(html, /值得你处理的变化/);
+  assert.match(html, /role="tab"[^>]*aria-selected="true"[^>]*>\s*今日情报/);
+  assert.match(html, /role="tab"[^>]*aria-selected="false"[^>]*>\s*主题追踪/);
+  assert.doesNotMatch(html, /今日情报<\/span><b>|主题追踪<\/span><b>→/);
   assert.doesNotMatch(html, /href="\/entities|href="\/about|href="\/#workflow/);
   assert.doesNotMatch(html, /处理流程|实体档案|了解我们如何筛选/);
   assert.match(html, /property="og:image"[^>]*content="http:\/\/localhost(?::3000)?\/og-home-v2\.png"|content="http:\/\/localhost(?::3000)?\/og-home-v2\.png"[^>]*property="og:image"/i);
