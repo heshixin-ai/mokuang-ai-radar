@@ -77,7 +77,11 @@ export async function transitionEventPublication(
   action: "publish" | "withdraw",
   note: string | null,
   actor: ReviewActor,
-  options: { repository?: D1EventWorkflowRepository; clock?: () => Date } = {},
+  options: {
+    repository?: D1EventWorkflowRepository;
+    clock?: () => Date;
+    allowSoftQuality?: boolean;
+  } = {},
 ): Promise<EventAdminView> {
   const repository = options.repository ?? new D1EventWorkflowRepository(getD1());
   const event = await repository.transitionPublication({
@@ -87,6 +91,7 @@ export async function transitionEventPublication(
     actor,
     now: (options.clock ?? (() => new Date()))().toISOString(),
     actionId: `pub_${crypto.randomUUID()}`,
+    allowSoftQuality: options.allowSoftQuality ?? false,
   });
   if (!event) {
     throw new EventWorkflowError(

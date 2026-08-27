@@ -8,9 +8,15 @@ import type {
   AutoPublishingRepository,
 } from "@/lib/repository/auto-publishing";
 
-const allowedEventTypes = new Set(["model_release", "api_change", "policy", "research"]);
-const candidateApprovalNote = "自动发布策略 v2：官方来源、达到配置阈值且无风险标记，进入正式质量门禁。";
-const publicationNote = "自动发布策略 v2：官方证据、达到配置阈值、无风险标记，且草稿通过确定性质量门禁。";
+const allowedEventTypes = new Set(["model_release", "api_change", "research"]);
+const softCandidateReviewReasons = new Set(["draft_quality_blocked"]);
+const softDraftQualityIssues = new Set([
+  "confidence_below_0_8",
+  "impact_model_requested_review",
+  "draft_model_requested_review",
+]);
+const candidateApprovalNote = "自动发布策略 v3：可信一手来源、低风险类型且置信度达到 0.7，进入正式质量门禁。";
+const publicationNote = "自动发布策略 v3：可信一手证据、引用完整且无实质质量风险，自动发布。";
 
 export type AutoPublishOutcome = {
   candidateId: string;
@@ -34,7 +40,12 @@ export type AutoPublishingOperations = {
   approveCandidate(candidateId: string, note: string, actor: ReviewActor): Promise<void>;
   clusterCandidate(candidateId: string): Promise<ClusterDecisionView>;
   createDraft(candidateId: string, actor: ReviewActor): Promise<EventAdminView>;
-  publishEvent(eventId: string, note: string, actor: ReviewActor): Promise<EventAdminView>;
+  publishEvent(
+    eventId: string,
+    note: string,
+    actor: ReviewActor,
+    allowSoftQuality: boolean,
+  ): Promise<EventAdminView>;
 };
 
 export async function runSafeAutoPublishingBatch(options: {
@@ -85,7 +96,12 @@ export async function runSafeAutoPublishingBatch(options: {
         continue;
       }
 
-      const published = await options.operations.publishEvent(draft.id, publicationNote, options.actor);
+      const published = await options.operations.publishEvent(
+        draft.id,
+        publicationNote,
+        options.actor,
+        draft.qualityStatus === "blocked",
+      );
       outcomes.push({ candidateId: candidate.id, eventId: published.id, status: "published", reason: "safe_policy_passed" });
     } catch {
       try {
@@ -119,13 +135,10 @@ export function candidatePolicyReason(
   if (candidate.sourceType !== "official" && !isPrimaryResearch) return "source_not_official";
   if (candidate.evidenceLevel !== "official") return "evidence_not_official";
   if (!allowedEventTypes.has(candidate.eventType)) return "event_type_requires_review";
-  const isOfficialPolicy = candidate.eventType === "policy" && candidate.sourceType === "official";
-  const hasOnlyAutomaticPolicyReview = isOfficialPolicy
-    && candidate.reviewReasons.length > 0
-    && candidate.reviewReasons.every((reason) => reason === "high_risk_event_type");
-  if (candidate.needsReview && !hasOnlyAutomaticPolicyReview) return "candidate_requires_review";
-  if (candidate.reviewReasons.length > 0 && !hasOnlyAutomaticPolicyReview) return "candidate_review_reasons_present";
-  if (candidate.escalated && !hasOnlyAutomaticPolicyReview) return "candidate_escalated";
+  const hasOnlySoftReviewReasons = candidate.reviewReasons.length > 0
+    && candidate.reviewReasons.every((reason) => softCandidateReviewReasons.has(reason));
+  if (candidate.needsReview && !hasOnlySoftReviewReasons) return "candidate_requires_review";
+  if (candidate.reviewReasons.length > 0 && !hasOnlySoftReviewReasons) return "candidate_review_reasons_present";
   if (candidate.confidence < config.AUTO_PUBLISH_MIN_CONFIDENCE) return "confidence_below_threshold";
   return null;
 }
@@ -141,12 +154,16 @@ export function draftPolicyReason(event: EventAdminView, config: AutoPublishConf
   ))) {
     return "draft_source_not_official";
   }
-  if (event.qualityStatus !== "ready" || event.qualityIssues.length > 0) return "draft_quality_blocked";
-  if (event.needsReview || event.reviewReasons.length > 0) return "draft_requires_review";
   if (event.confidence < config.AUTO_PUBLISH_MIN_CONFIDENCE) return "draft_confidence_below_threshold";
   if (event.citations.length === 0) return "draft_citations_missing";
   const sourceIds = new Set(event.sources.map((source) => source.id));
   if (event.citations.some((citation) => !sourceIds.has(citation.sourceId))) return "draft_citation_source_missing";
+  const hasOnlySoftQualityIssues = event.qualityIssues.length > 0
+    && event.qualityIssues.every((issue) => softDraftQualityIssues.has(issue));
+  const softBlockedDraft = event.qualityStatus === "blocked" && hasOnlySoftQualityIssues;
+  if (event.qualityStatus !== "ready" && !softBlockedDraft) return "draft_quality_blocked";
+  if (event.qualityIssues.length > 0 && !softBlockedDraft) return "draft_quality_blocked";
+  if ((event.needsReview || event.reviewReasons.length > 0) && !softBlockedDraft) return "draft_requires_review";
   return null;
 }
 
@@ -176,8 +193,11 @@ export async function createD1AutoPublishingOperations(
     createDraft(candidateId, actor) {
       return eventModule.createEventDraft(candidateId, actor, { repository: eventRepository, config: aiConfig });
     },
-    publishEvent(eventId, note, actor) {
-      return eventModule.transitionEventPublication(eventId, "publish", note, actor, { repository: eventRepository });
+    publishEvent(eventId, note, actor, allowSoftQuality) {
+      return eventModule.transitionEventPublication(eventId, "publish", note, actor, {
+        repository: eventRepository,
+        allowSoftQuality,
+      });
     },
   };
 }

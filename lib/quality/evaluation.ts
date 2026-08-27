@@ -28,13 +28,13 @@ export function buildLaunchFixtures(): QualityFixture[] {
     const evidenceLevel = index % 5 === 3 ? "lead_only" as const : index % 2 === 0 ? "official" as const : "corroborated" as const;
     const highRisk = ["pricing", "policy", "funding"].includes(eventType);
     const hasHighRiskReview = !highRisk || index % 5 !== 4;
-    const expectedReady = hasCitation && confidence >= 0.8 && evidenceLevel !== "lead_only" && hasHighRiskReview;
+    const expectedReady = hasCitation && confidence >= 0.7 && evidenceLevel !== "lead_only" && hasHighRiskReview;
     return { id: `${eventType}-${String(index + 1).padStart(2, "0")}`, eventType, hasCitation, confidence, evidenceLevel, hasHighRiskReview, expectedReady };
   }));
 }
 
 export function assessLaunchFixture(fixture: QualityFixture): boolean {
-  if (!fixture.hasCitation || fixture.confidence < 0.8 || fixture.evidenceLevel === "lead_only") return false;
+  if (!fixture.hasCitation || fixture.confidence < 0.7 || fixture.evidenceLevel === "lead_only") return false;
   if (["pricing", "policy", "funding"].includes(fixture.eventType) && !fixture.hasHighRiskReview) return false;
   return true;
 }

@@ -51,4 +51,28 @@ describe("formal event drafting", () => {
     expect(quality.status).toBe("blocked");
     expect(quality.issues).toContain("high_risk_review_note_missing");
   });
+
+  it("does not let conservative model flags alone block a trusted low-risk draft", async () => {
+    const result = await generateEventDraft(material, readAiConfig({ AI_PROVIDER: "mock" }));
+    result.impact.needs_review = true;
+    result.impact.review_reasons = ["wording_uncertain"];
+    result.draft.needs_review = true;
+    result.draft.review_reasons = ["summary_uncertain"];
+
+    const quality = evaluateDraftQuality(material, result);
+
+    expect(quality).toMatchObject({ status: "ready", issues: [], needsReview: false, reviewReasons: [] });
+  });
+
+  it("still blocks trusted drafts below the 0.7 floor", async () => {
+    const lowConfidence = {
+      ...material,
+      candidate: { ...material.candidate, confidence: 0.69 },
+    };
+    const result = await generateEventDraft(lowConfidence, readAiConfig({ AI_PROVIDER: "mock" }));
+    const quality = evaluateDraftQuality(lowConfidence, result);
+
+    expect(quality.status).toBe("blocked");
+    expect(quality.issues).toContain("confidence_below_0_7");
+  });
 });

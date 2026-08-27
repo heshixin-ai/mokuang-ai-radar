@@ -34,13 +34,15 @@ export class D1AutoPublishingRepository implements AutoPublishingRepository {
       WHERE c.review_status IN ('pending', 'approved')
         AND (
           e.id IS NULL
-          OR (e.status = 'draft' AND e.quality_status = 'ready')
+          OR e.status = 'draft'
         )
         AND (
           cc.id IS NULL
           OR (cc.action = 'create_new' AND cc.status IN ('confirmed', 'dismissed'))
         )
-      ORDER BY CASE WHEN e.status = 'draft' THEN 0 ELSE 1 END, c.updated_at ASC
+      ORDER BY d.published_at DESC,
+        CASE WHEN e.status = 'draft' THEN 0 ELSE 1 END,
+        c.updated_at ASC
       LIMIT ?
     `).bind(limit).all<Record<string, unknown>>();
 
