@@ -8,27 +8,6 @@ import { isDemoEvent, listEvents } from "@/lib/repository/events";
 import { listTopicTimelines } from "@/lib/repository/taxonomy";
 import Link from "@/components/site-link";
 
-const productValues = [
-  {
-    number: "01",
-    eyebrow: "CONTROLLED SOURCES",
-    title: "受控来源，不追热点榜",
-    text: "持续检查官方公告、API 文档、研究机构与可信媒体，只收录会影响判断和行动的变化。",
-  },
-  {
-    number: "02",
-    eyebrow: "EVENT FIRST",
-    title: "一个变化，而不是十篇文章",
-    text: "把描述同一件事的多条线索合并成事件，留下来源、冲突与证据等级，不制造重复噪音。",
-  },
-  {
-    number: "03",
-    eyebrow: "NEXT ACTION",
-    title: "告诉你现在该做什么",
-    text: "分别判断产品、开发、研究与创业者受到的影响，并给出可以立刻执行的下一步。",
-  },
-];
-
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
@@ -87,22 +66,6 @@ export default async function Home() {
           topics={previewTopics}
           sourceCount={curatedSources.length}
         />
-      </section>
-
-      <section className="home-values" aria-labelledby="value-title">
-        <div className="home-section-heading">
-          <span className="home-kicker">WHY MOKUANG</span>
-          <h2 id="value-title">从新闻噪音里，<br />只留下决策信号。</h2>
-        </div>
-        <div className="value-grid">
-          {productValues.map((value) => (
-            <article className="value-card" key={value.number}>
-              <div><span>{value.number}</span><small>{value.eyebrow}</small></div>
-              <h3>{value.title}</h3>
-              <p>{value.text}</p>
-            </article>
-          ))}
-        </div>
       </section>
 
       <EventFeed events={events} referenceTime={feedReferenceTime} />
