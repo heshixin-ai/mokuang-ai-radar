@@ -26,6 +26,7 @@ test("首页呈现模况产品信息而非 starter", async () => {
   assert.match(html, /<button[^>]*class="home-primary-action"[^>]*type="button"[^>]*>浏览今日变化<\/button>/);
   assert.match(html, /查看今日情报/);
   assert.match(html, /继续浏览情报/);
+  assert.doesNotMatch(html, /继续浏览情报\s*<span[^>]*>→<\/span>/);
   assert.doesNotMatch(html, /查看主题追踪/);
   assert.doesNotMatch(html, /浏览今日变化\s*<span[^>]*>→<\/span>/);
   assert.match(html, /演示数据|安全门禁/);
