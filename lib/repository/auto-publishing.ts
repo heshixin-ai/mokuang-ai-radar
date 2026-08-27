@@ -40,7 +40,9 @@ export class D1AutoPublishingRepository implements AutoPublishingRepository {
           cc.id IS NULL
           OR (cc.action = 'create_new' AND cc.status IN ('confirmed', 'dismissed'))
         )
-      ORDER BY CASE WHEN e.status = 'draft' THEN 0 ELSE 1 END, c.updated_at ASC
+      ORDER BY d.published_at DESC,
+        CASE WHEN e.status = 'draft' THEN 0 ELSE 1 END,
+        c.updated_at ASC
       LIMIT ?
     `).bind(limit).all<Record<string, unknown>>();
 
