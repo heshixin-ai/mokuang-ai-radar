@@ -22,26 +22,15 @@ export function TimelineIndex({
   basePath: string;
   items: TimelineSummary[];
 }) {
-  const totalEvents = items.reduce((sum, item) => sum + item.count, 0);
-
   return (
     <section className="timeline-shell topic-index-shell">
       <header className="topic-hero">
         <div className="topic-hero-copy">
           <p className="topic-overline">从单条新闻，进入连续脉络</p>
-          <h1>
-            {title}
-            <span className="topic-inline-count" role="img" aria-label={`${items.length} 个主题`}>
-              {String(items.length).padStart(2, "0")}
-            </span>
-          </h1>
+          <h1>{title}</h1>
           <p>{description} 每个主题只保留已经发布、可以回溯来源的变化。</p>
         </div>
-        <aside className="topic-hero-summary" aria-label="主题数据概览">
-          <div>
-            <strong>{totalEvents}</strong>
-            <span>条已发布事件</span>
-          </div>
+        <aside className="topic-hero-summary" aria-label="主题追踪说明">
           <p>把同一类变化放在一起看，判断它是孤立更新，还是正在形成的趋势。</p>
         </aside>
       </header>
