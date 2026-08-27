@@ -110,7 +110,6 @@ export default async function Home() {
       <section className="home-subscribe-cta" aria-labelledby="subscribe-title">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
         <h2 id="subscribe-title"><span>不用追完所有新闻。</span><span>重要变化，模况替你盯着。</span></h2>
-        <EventSectionButton className="home-primary-action">继续浏览情报</EventSectionButton>
       </section>
 
       <footer className="site-footer home-footer">

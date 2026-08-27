@@ -773,9 +773,9 @@ button:disabled { opacity: .5; cursor: wait; }
 .home-v2 .feed-load-more button:focus-visible { outline: 2px solid var(--home-ink); outline-offset: 3px; }
 
 .home-subscribe-cta { padding: 104px 0; border-top: 1px solid var(--home-line); text-align: center; }
-.home-subscribe-cta h2 { margin: 24px auto 34px; font-size: clamp(48px, 6.4vw, 84px); font-weight: 550; line-height: 1.01; letter-spacing: -.06em; }
+.home-subscribe-cta h2 { margin: 24px auto 0; font-size: clamp(48px, 6.4vw, 84px); font-weight: 550; line-height: 1.01; letter-spacing: -.06em; }
 .home-subscribe-cta h2 span { display: block; }
-.home-v2 .home-footer { border-top: 1px solid var(--home-line); color: var(--home-muted); }
+.home-v2 .home-footer { border-top: 0; color: var(--home-muted); }
 .home-v2 .home-footer .brand-mark { color: #fff; background: var(--home-ink); }
 
 @media (max-width: 920px) {
