@@ -1,13 +1,5 @@
-"use client";
-
-import { useRef } from "react";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "@/components/site-link";
 import type { TimelineSummary } from "@/lib/repository/taxonomy";
-
-if (typeof window !== "undefined") gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 const topicDescriptions: Record<string, string> = {
   api_change: "集中查看接口、SDK、平台能力与兼容性变化，快速判断开发和产品侧是否需要调整。",
@@ -30,44 +22,10 @@ export function TimelineIndex({
   basePath: string;
   items: TimelineSummary[];
 }) {
-  const shell = useRef<HTMLElement>(null);
   const totalEvents = items.reduce((sum, item) => sum + item.count, 0);
 
-  useGSAP(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    gsap.from(".topic-hero-copy > *", {
-      opacity: 0,
-      y: 24,
-      duration: 0.75,
-      stagger: 0.09,
-      ease: "power3.out",
-    });
-    gsap.fromTo(".topic-card",
-      { opacity: 0.28, scale: 0.94, y: 36 },
-      {
-        opacity: 1,
-        scale: 1,
-        y: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: "power3.out",
-        scrollTrigger: { trigger: ".topic-card-grid", start: "top 84%", once: true },
-      },
-    );
-    if (window.matchMedia("(min-width: 721px)").matches) {
-      ScrollTrigger.create({
-        trigger: ".topic-hero",
-        start: "top top+=82",
-        end: "+=140",
-        pin: ".topic-hero-copy",
-        pinSpacing: false,
-      });
-    }
-  }, { scope: shell });
-
   return (
-    <section className="timeline-shell topic-index-shell" ref={shell}>
+    <section className="timeline-shell topic-index-shell">
       <header className="topic-hero">
         <div className="topic-hero-copy">
           <p className="topic-overline">从单条新闻，进入连续脉络</p>

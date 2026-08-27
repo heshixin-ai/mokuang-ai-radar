@@ -17,10 +17,8 @@
     "db:migrate:local": "wrangler d1 migrations apply site-creator-d1 --local --persist-to .wrangler/state --config dist/server/wrangler.json"
   },
   "dependencies": {
-    "@gsap/react": "^2.1.2",
     "drizzle-orm": "0.45.2",
     "fast-xml-parser": "5.11.0",
-    "gsap": "^3.15.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "zod": "^4.4.3"

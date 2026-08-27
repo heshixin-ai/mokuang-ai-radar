@@ -241,8 +241,8 @@ button:disabled { opacity: .5; cursor: wait; }
 .revision-history li { margin: 9px 0; }
 .revision-history small { display: block; color: var(--muted); margin-top: 3px; }
 .topic-page { overflow-x: hidden; width: 100%; max-width: 100%; font-family: "Outfit", "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif; }
-.timeline-shell { width: min(1160px, calc(100% - 40px)); margin: 0 auto; padding: 62px 0 96px; }
-.topic-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr); gap: clamp(48px, 8vw, 112px); align-items: end; min-height: 330px; padding: 20px 0 62px; }
+.timeline-shell { width: min(1160px, calc(100% - 40px)); margin: 0 auto; padding: 54px 0 88px; }
+.topic-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr); gap: clamp(48px, 8vw, 112px); align-items: end; padding: 18px 0 50px; }
 .topic-overline { margin: 0 0 22px; color: var(--brand); font-size: 12px; font-weight: 850; letter-spacing: .12em; }
 .topic-hero-copy h1 { max-width: 820px; margin: 0; font-size: clamp(58px, 7vw, 86px); font-weight: 650; line-height: .98; letter-spacing: -.07em; }
 .topic-hero-copy > p:last-child { max-width: 660px; margin: 28px 0 0; color: var(--muted); font-size: 17px; line-height: 1.75; }
@@ -253,7 +253,7 @@ button:disabled { opacity: .5; cursor: wait; }
 .topic-hero-summary span { color: var(--muted); font-size: 12px; }
 .topic-hero-summary p { margin: 22px 0 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
 .topic-card-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--signal); }
-.topic-grid-section { padding: 56px 0 0; }
+.topic-grid-section { padding: 42px 0 0; }
 .topic-grid-section > header { display: flex; justify-content: space-between; align-items: end; gap: 40px; margin-bottom: 26px; }
 .topic-grid-section h2 { margin: 0; font-size: clamp(30px, 4vw, 44px); font-weight: 620; letter-spacing: -.05em; }
 .topic-grid-section > header p { max-width: 390px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; text-align: right; }
