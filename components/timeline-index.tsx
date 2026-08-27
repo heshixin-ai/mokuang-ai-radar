@@ -90,16 +90,6 @@ export function TimelineIndex({
 
       {items.length > 0 ? (
         <>
-          <div className="topic-marquee" aria-label="当前追踪主题">
-            <div>
-              {[...items, ...items].map((item, index) => (
-                <span key={`${item.slug}-${index}`} aria-hidden={index >= items.length}>
-                  {item.label}<i />{item.count} 条
-                </span>
-              ))}
-            </div>
-          </div>
-
           <section className="topic-grid-section" aria-labelledby="topic-grid-title">
             <header>
               <h2 id="topic-grid-title">选择一个主题</h2>
