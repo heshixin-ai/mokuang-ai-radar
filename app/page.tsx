@@ -1,4 +1,5 @@
 import { EventFeed } from "@/components/event-feed";
+import { EventSectionButton, HomeScrollReset } from "@/components/event-section-link";
 import { RadarPreview } from "@/components/radar-preview";
 import { SiteHeader } from "@/components/site-header";
 import { eventTypeLabels } from "@/lib/domain/labels";
@@ -53,9 +54,10 @@ export default async function Home() {
 
   return (
     <main className="home-v2">
+      <HomeScrollReset />
       <aside className="home-announcement" aria-label="产品状态">
         <span>模况正在持续追踪 AI 产业变化</span>
-        <a href="#events">查看今日情报 <span aria-hidden="true">→</span></a>
+        <EventSectionButton>查看今日情报 <span aria-hidden="true">→</span></EventSectionButton>
       </aside>
 
       <SiteHeader active="intel" />
@@ -65,7 +67,7 @@ export default async function Home() {
         <h1 id="home-title"><span>只看 AI 真正</span><span>发生的变化</span></h1>
         <p>模况把分散的公告、文档与报道整理成可验证的事件。每天 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
         <div className="home-actions">
-          <a className="home-primary-action" href="#events">浏览今日变化</a>
+          <EventSectionButton className="home-primary-action">浏览今日变化</EventSectionButton>
         </div>
         <div className="home-status" id="stage-note">
           <span className="home-live-dot" />
@@ -108,7 +110,7 @@ export default async function Home() {
       <section className="home-subscribe-cta" aria-labelledby="subscribe-title">
         <span className="home-kicker">YOUR 10-MINUTE AI BRIEFING</span>
         <h2 id="subscribe-title"><span>不用追完所有新闻。</span><span>重要变化，模况替你盯着。</span></h2>
-        <a className="home-primary-action" href="#events">继续浏览情报 <span aria-hidden="true">→</span></a>
+        <EventSectionButton className="home-primary-action">继续浏览情报 <span aria-hidden="true">→</span></EventSectionButton>
       </section>
 
       <footer className="site-footer home-footer">

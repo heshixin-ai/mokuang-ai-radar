@@ -454,8 +454,16 @@ button:disabled { opacity: .5; cursor: wait; }
   font-size: 12px;
 }
 .home-v2 .home-announcement > span { color: rgba(255,255,255,.68); }
-.home-v2 .home-announcement a { font-weight: 750; }
-.home-v2 .home-announcement a span { color: rgba(255,255,255,.82); }
+.home-v2 .home-announcement button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
+}
+.home-v2 .home-announcement button span { color: rgba(255,255,255,.82); }
 
 .home-v2 .site-header {
   width: min(1200px, calc(100% - 40px));
@@ -537,8 +545,10 @@ button:disabled { opacity: .5; cursor: wait; }
   border: 1px solid var(--home-ink);
   border-radius: 7px;
   font-size: 14px;
+  font-family: inherit;
   font-weight: 750;
 }
+.home-primary-action { cursor: pointer; }
 .home-primary-action { gap: 24px; color: #fff; background: var(--home-ink); }
 .home-primary-action span { color: rgba(255,255,255,.82); }
 .home-secondary-action { background: transparent; }
