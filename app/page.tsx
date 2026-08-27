@@ -65,8 +65,7 @@ export default async function Home() {
         <h1 id="home-title"><span>只看 AI 真正</span><span>发生的变化</span></h1>
         <p>模况把分散的公告、文档与报道整理成可验证的事件。每天 10 分钟，看清发生了什么、影响谁、现在要做什么。</p>
         <div className="home-actions">
-          <a className="home-primary-action" href="#events">浏览今日变化 <span aria-hidden="true">→</span></a>
-          <Link className="home-secondary-action" href="/topics">查看主题追踪</Link>
+          <a className="home-primary-action" href="#events">浏览今日变化</a>
         </div>
         <div className="home-status" id="stage-note">
           <span className="home-live-dot" />

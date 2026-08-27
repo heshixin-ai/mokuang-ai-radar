@@ -23,6 +23,9 @@ test("首页呈现模况产品信息而非 starter", async () => {
   assert.match(html, /模况 Mokuang｜AI 产品与模型变更雷达/);
   assert.match(html, /只看 AI 真正/);
   assert.match(html, /发生的变化/);
+  assert.match(html, /<a[^>]*class="home-primary-action"[^>]*href="#events"[^>]*>浏览今日变化<\/a>/);
+  assert.doesNotMatch(html, /查看主题追踪/);
+  assert.doesNotMatch(html, /浏览今日变化\s*<span[^>]*>→<\/span>/);
   assert.match(html, /演示数据|安全门禁/);
   assert.match(html, /值得你处理的变化/);
   assert.match(html, /role="tab"[^>]*aria-selected="true"[^>]*>\s*今日情报/);

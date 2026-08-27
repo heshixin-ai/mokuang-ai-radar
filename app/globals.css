@@ -796,7 +796,7 @@ button:disabled { opacity: .5; cursor: wait; }
   .home-hero { width: min(100% - 28px, 1040px); padding: 76px 0 54px; }
   .home-hero h1 { margin: 24px 0 22px; font-size: clamp(50px, 11vw, 60px); }
   .home-hero > p { font-size: 15px; }
-  .home-actions { display: grid; }
+  .home-actions { display: flex; justify-content: center; }
   .home-primary-action, .home-secondary-action { width: min(100%, 310px); }
   .home-status { flex-wrap: wrap; line-height: 1.45; }
   .home-status > span:last-child { width: 100%; }
